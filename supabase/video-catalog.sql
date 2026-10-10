@@ -13,6 +13,7 @@ create table if not exists public.drama_series (
   title text not null check (btrim(title) <> ''),
   synopsis text not null default '',
   poster_key text,
+  cover_image_path text,
   genre text not null default '',
   status text not null default 'draft' check (status in ('draft', 'published', 'archived')),
   created_by uuid not null references public.profiles(id),
@@ -37,11 +38,13 @@ create table if not exists public.drama_episodes (
   synopsis text not null default '',
   duration_seconds integer check (duration_seconds is null or duration_seconds > 0),
   video_asset_id text,
+  video_path text,
+  thumbnail_path text,
   status text not null default 'draft' check (status in ('draft', 'published', 'archived')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (season_id, episode_number),
-  check (status <> 'published' or video_asset_id is not null)
+  check (status <> 'published' or video_path is not null)
 );
 
 create index if not exists drama_series_status_updated_idx

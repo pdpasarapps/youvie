@@ -6,15 +6,15 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type DailyViews = { date: string; views: number };
-type TopComic = { comicId: string; slug: string; title: string; views: number };
-type TopChapter = { chapterId: string; comicSlug: string; comicTitle: string; chapterNumber: number; title: string; views: number };
+type TopSeries = { seriesId: string; title: string; views: number };
+type TopEpisode = { episodeId: string; seriesTitle: string; seasonNumber: number; episodeNumber: number; title: string; views: number };
 type AnalyticsData = {
   views: number;
   uniqueVisitors: number;
-  registeredReaders: number;
+  registeredViewers: number;
   daily: DailyViews[];
-  topComics: TopComic[];
-  topChapters: TopChapter[];
+  topSeries: TopSeries[];
+  topEpisodes: TopEpisode[];
 };
 
 const supabase = createClient();
@@ -27,31 +27,31 @@ function parseAnalytics(value: unknown): AnalyticsData | null {
   if (!isRecord(value)
     || typeof value.views !== "number"
     || typeof value.uniqueVisitors !== "number"
-    || typeof value.registeredReaders !== "number"
+    || typeof value.registeredViewers !== "number"
     || !Array.isArray(value.daily)
-    || !Array.isArray(value.topComics)
-    || !Array.isArray(value.topChapters)) return null;
+    || !Array.isArray(value.topSeries)
+    || !Array.isArray(value.topEpisodes)) return null;
 
   const daily = value.daily.flatMap((row): DailyViews[] => (
     isRecord(row) && typeof row.date === "string" && typeof row.views === "number"
       ? [{ date: row.date, views: row.views }]
       : []
   ));
-  const topComics = value.topComics.flatMap((row): TopComic[] => (
-    isRecord(row) && typeof row.comicId === "string" && typeof row.slug === "string"
+  const topSeries = value.topSeries.flatMap((row): TopSeries[] => (
+    isRecord(row) && typeof row.seriesId === "string"
       && typeof row.title === "string" && typeof row.views === "number"
-      ? [{ comicId: row.comicId, slug: row.slug, title: row.title, views: row.views }]
+      ? [{ seriesId: row.seriesId, title: row.title, views: row.views }]
       : []
   ));
-  const topChapters = value.topChapters.flatMap((row): TopChapter[] => (
-    isRecord(row) && typeof row.chapterId === "string" && typeof row.comicSlug === "string"
-      && typeof row.comicTitle === "string" && typeof row.chapterNumber === "number"
+  const topEpisodes = value.topEpisodes.flatMap((row): TopEpisode[] => (
+    isRecord(row) && typeof row.episodeId === "string" && typeof row.seriesTitle === "string"
+      && typeof row.seasonNumber === "number" && typeof row.episodeNumber === "number"
       && typeof row.title === "string" && typeof row.views === "number"
       ? [{
-        chapterId: row.chapterId,
-        comicSlug: row.comicSlug,
-        comicTitle: row.comicTitle,
-        chapterNumber: row.chapterNumber,
+        episodeId: row.episodeId,
+        seriesTitle: row.seriesTitle,
+        seasonNumber: row.seasonNumber,
+        episodeNumber: row.episodeNumber,
         title: row.title,
         views: row.views,
       }]
@@ -61,10 +61,10 @@ function parseAnalytics(value: unknown): AnalyticsData | null {
   return {
     views: value.views,
     uniqueVisitors: value.uniqueVisitors,
-    registeredReaders: value.registeredReaders,
+    registeredViewers: value.registeredViewers,
     daily,
-    topComics,
-    topChapters,
+    topSeries,
+    topEpisodes,
   };
 }
 
@@ -82,7 +82,7 @@ export default function AdminAnalyticsPanel() {
     let active = true;
     const loadAnalytics = async () => {
       try {
-        const { data, error } = await supabase.rpc("admin_comic_analytics", { p_days: days });
+        const { data, error } = await supabase.rpc("admin_drama_analytics", { p_days: days });
         if (!active) return;
         if (error) {
           console.error("Unable to load admin analytics:", error);
@@ -90,7 +90,7 @@ export default function AdminAnalyticsPanel() {
             days,
             analytics: null,
             errorMessage: error.code === "PGRST202"
-              ? "Jalankan supabase/comic-analytics.sql di Supabase SQL Editor untuk mengaktifkan analitik."
+              ? "Jalankan supabase/drama-analytics.sql setelah supabase/video-catalog.sql di Supabase SQL Editor."
               : "Data analitik belum dapat dimuat. Coba muat ulang halaman.",
           });
         } else {
@@ -121,7 +121,7 @@ export default function AdminAnalyticsPanel() {
   return (
     <section className="admin-analytics-section" id="analytics" aria-labelledby="admin-analytics-title">
       <div className="admin-section-heading">
-        <div><p className="eyebrow">Pembacaan komik</p><h2 id="admin-analytics-title">Analitik</h2></div>
+        <div><p className="eyebrow">Penayangan drama</p><h2 id="admin-analytics-title">Analitik drama</h2></div>
         <label className="admin-analytics-range">Rentang
           <select value={days} onChange={(event) => setDays(Number(event.target.value))} aria-label="Rentang analitik">
             <option value={7}>7 hari</option>
@@ -137,21 +137,21 @@ export default function AdminAnalyticsPanel() {
           : (
             <>
               <div className="admin-analytics-stats">
-                <article className="admin-stat"><span>Kunjungan episode</span><strong>{formatCount(analytics.views)}</strong><Eye size={20} /></article>
-                <article className="admin-stat"><span>Pembaca unik*</span><strong>{formatCount(analytics.uniqueVisitors)}</strong><Users size={20} /></article>
-                <article className="admin-stat"><span>Pembaca login</span><strong>{formatCount(analytics.registeredReaders)}</strong><UserRound size={20} /></article>
+                <article className="admin-stat"><span>Penayangan episode</span><strong>{formatCount(analytics.views)}</strong><Eye size={20} /></article>
+                <article className="admin-stat"><span>Penonton unik*</span><strong>{formatCount(analytics.uniqueVisitors)}</strong><Users size={20} /></article>
+                <article className="admin-stat"><span>Penonton login</span><strong>{formatCount(analytics.registeredViewers)}</strong><UserRound size={20} /></article>
               </div>
-              <p className="admin-analytics-note">*Pembaca unik dihitung berdasarkan kuki acak di peramban; dapat terhitung kembali setelah kuki dihapus atau pada peramban/perangkat lain. Satu episode dihitung maksimal sekali per pembaca setiap 30 menit.</p>
+              <p className="admin-analytics-note">*Penonton unik dihitung berdasarkan kuki acak di peramban; dapat terhitung kembali setelah kuki dihapus atau pada peramban/perangkat lain. Satu episode dihitung maksimal sekali per penonton setiap 30 menit saat video mulai diputar.</p>
               <div className="admin-analytics-chart-panel">
-                <div className="admin-analytics-subheading"><h3>Tren kunjungan harian</h3><span><BarChart3 size={15} /> UTC</span></div>
+                <div className="admin-analytics-subheading"><h3>Tren penayangan harian</h3><span><BarChart3 size={15} /> UTC</span></div>
                 {analytics.daily.length === 0
-                  ? <p className="admin-analytics-empty">Belum ada data kunjungan pada rentang ini.</p>
-                  : <div className="admin-analytics-chart" role="img" aria-label={`Grafik ${days} hari kunjungan episode`}>
+                  ? <p className="admin-analytics-empty">Belum ada data penayangan pada rentang ini.</p>
+                  : <div className="admin-analytics-chart" role="img" aria-label={`Grafik ${days} hari penayangan episode drama`}>
                     {analytics.daily.map((item, index) => {
                       const showLabel = days <= 30 || index % 7 === 0 || index === analytics.daily.length - 1;
                       const date = new Date(`${item.date}T00:00:00Z`);
                       return (
-                        <div className="admin-analytics-day" key={item.date} title={`${date.toLocaleDateString("id-ID", { timeZone: "UTC" })}: ${formatCount(item.views)} kunjungan`}>
+                        <div className="admin-analytics-day" key={item.date} title={`${date.toLocaleDateString("id-ID", { timeZone: "UTC" })}: ${formatCount(item.views)} penayangan`}>
                           <span className="admin-analytics-bar-wrap"><span className="admin-analytics-bar" style={{ height: `${Math.max(3, item.views / maxDailyViews * 100)}%` }} /></span>
                           {showLabel && <span className="admin-analytics-day-label">{date.toLocaleDateString("id-ID", { day: "2-digit", month: "short", timeZone: "UTC" })}</span>}
                         </div>
@@ -161,21 +161,21 @@ export default function AdminAnalyticsPanel() {
               </div>
               <div className="admin-analytics-rankings">
                 <section className="admin-analytics-list">
-                  <h3>Komik teratas</h3>
-                  {analytics.topComics.length === 0
+                  <h3>Serial drama teratas</h3>
+                  {analytics.topSeries.length === 0
                     ? <p className="admin-analytics-empty">Belum ada data.</p>
-                    : <ol>{analytics.topComics.map((comic) => <li key={comic.comicId}>
-                      <Link href={`/comic/${comic.slug}`}>{comic.title}</Link><strong>{formatCount(comic.views)}</strong>
+                    : <ol>{analytics.topSeries.map((series) => <li key={series.seriesId}>
+                      <Link href="/admin/drama">{series.title}</Link><strong>{formatCount(series.views)}</strong>
                     </li>)}</ol>}
                 </section>
                 <section className="admin-analytics-list">
-                  <h3>Episode teratas</h3>
-                  {analytics.topChapters.length === 0
+                  <h3>Episode drama teratas</h3>
+                  {analytics.topEpisodes.length === 0
                     ? <p className="admin-analytics-empty">Belum ada data.</p>
-                    : <ol>{analytics.topChapters.map((chapter) => <li key={chapter.chapterId}>
-                      <Link href={`/comic/${chapter.comicSlug}/chapter/${chapter.chapterId}`}>
-                        <span>{chapter.comicTitle}</span> · Ep. {chapter.chapterNumber}: {chapter.title}
-                      </Link><strong>{formatCount(chapter.views)}</strong>
+                    : <ol>{analytics.topEpisodes.map((episode) => <li key={episode.episodeId}>
+                      <Link href="/admin/drama">
+                        <span>{episode.seriesTitle}</span> · S{episode.seasonNumber} Ep. {episode.episodeNumber}: {episode.title}
+                      </Link><strong>{formatCount(episode.views)}</strong>
                     </li>)}</ol>}
                 </section>
               </div>

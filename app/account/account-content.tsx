@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { ReactNode } from "react";
-import { ArrowRight, ArrowUpRight, BarChart3, BookOpen, Bookmark, CircleHelp, Home, LayoutDashboard, Library, LogOut, Plus, Search, Settings2, Sparkles, Trash2, UserRound, Video } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, Bookmark, CircleHelp, Home, LayoutDashboard, Library, LogOut, Play, Plus, Search, Settings2, Sparkles, Trash2, UserRound, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -12,30 +12,70 @@ import CreatorContent, { type CreatorArea } from "./creator-content";
 import CreatorAnalytics from "./creator-analytics";
 import ReaderPreferencesPanel from "@/components/reader-preferences-panel";
 import AccountSecuritySettings from "@/components/account-security-settings";
-import { getComicGenreLabel } from "@/lib/comic-genres";
 import { createCreatorHandle, isValidCreatorHandle } from "@/lib/creator-handle";
 import { getCreatorSocialPlaceholder, isValidCreatorSocialUrl, normalizeCreatorSocialUrl, parseCreatorSocialLinks, type CreatorSocialLink } from "@/lib/creator-social-links";
 import { usePlatformSettings } from "../platform-runtime";
 import { useReaderMembership } from "../membership-runtime";
 import { READER_MEMBERSHIP_TIERS } from "@/lib/reader-membership";
+import { getDramaCoverUrl } from "@/lib/drama-cover-url";
 
-export type AccountSection = "overview" | "reading" | "favorites" | "account-settings" | "creator-application" | "creator-profile" | "creator-guide" | "comic-editor" | "analitik-komik" | CreatorArea;
+export type AccountSection = "overview" | "watching" | "favorites" | "account-settings" | "creator-application" | "creator-profile" | "creator-guide" | "comic-editor" | "analitik-komik" | CreatorArea;
 const isCreatorArea = (section: AccountSection): section is CreatorArea =>
   section === "creator" || section === "komiku" || section === "terbitkan-komik";
 
 type Profile = { id: string; display_name: string; public_handle: string | null; role: "reader" | "creator" | "admin"; public_profile: boolean; bio: string; avatar_key: string | null; banner_key: string | null; social_links: CreatorSocialLink[] };
 type CreatorRequest = { status: "pending" | "approved" | "rejected" };
-type BookmarkedComic = { id: string; title: string; slug: string; genre: string; cover_key: string | null };
-type ContinueReading = {
-  comicTitle: string;
-  comicSlug: string;
+type Relation<T> = T | T[] | null;
+type DramaEpisodeRelation = {
+  id: string;
+  episode_number: number;
+  title: string;
+  thumbnail_path: string | null;
+};
+type DramaSeasonRelation = {
+  season_number: number;
+  drama_episodes: DramaEpisodeRelation[] | null;
+};
+type DramaSeriesRelation = {
+  id: string;
+  title: string;
+  genre: string;
+  cover_image_path: string | null;
+  drama_seasons: DramaSeasonRelation[] | null;
+};
+type DramaFavoriteRow = {
+  series_id: string;
+  created_at: string;
+  drama_series: Relation<DramaSeriesRelation>;
+};
+type DramaWatchSeries = Omit<DramaSeriesRelation, "drama_seasons">;
+type DramaWatchSeason = {
+  season_number: number;
+  drama_series: Relation<DramaWatchSeries>;
+};
+type DramaWatchEpisode = DramaEpisodeRelation & {
+  drama_seasons: Relation<DramaWatchSeason>;
+};
+type DramaWatchRow = {
+  episode_id: string;
+  position_seconds: number;
+  duration_seconds: number;
+  updated_at: string;
+  drama_episodes: Relation<DramaWatchEpisode>;
+};
+type FavoriteDrama = { id: string; title: string; genre: string; coverUrl: string | null; episodeId: string | null };
+type ContinueWatching = {
+  episodeId: string;
+  episodeTitle: string;
+  seriesTitle: string;
   genre: string;
   coverUrl: string | null;
-  chapterId: string;
-  chapterTitle: string;
-  chapterNumber: number;
-  lastPage: number;
-  pageCount: number;
+  thumbnailUrl: string | null;
+  seasonNumber: number;
+  episodeNumber: number;
+  positionSeconds: number;
+  durationSeconds: number;
+  updatedAt: string;
 };
 
 const supabase = createClient();
@@ -43,7 +83,7 @@ const publicUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
 const socialPlatforms = ["Instagram", "TikTok", "X", "YouTube", "Facebook", "Threads", "Twitch", "Discord", "Website", "Lainnya"];
 const isMissingProfileColumnError = (error: { code?: string }) => error.code === "42703" || error.code === "PGRST204";
 const roleLabels: Record<Profile["role"], string> = {
-  reader: "Pembaca",
+  reader: "Penonton",
   creator: "Kreator",
   admin: "Admin",
 };
@@ -52,6 +92,8 @@ const requestStatusLabels: Record<CreatorRequest["status"], string> = {
   approved: "Disetujui",
   rejected: "Ditolak",
 };
+const firstRelation = <T,>(relation: Relation<T>): T | null =>
+  Array.isArray(relation) ? relation[0] ?? null : relation;
 
 export default function AccountContent({ section, children }: { section: AccountSection; children?: ReactNode }) {
   const { settings } = usePlatformSettings();
@@ -69,9 +111,9 @@ export default function AccountContent({ section, children }: { section: Account
   const [portfolioUrl, setPortfolioUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
   const [otherUrl, setOtherUrl] = useState("");
-  const [bookmarks, setBookmarks] = useState<BookmarkedComic[]>([]);
+  const [favoriteDramas, setFavoriteDramas] = useState<FavoriteDrama[]>([]);
   const [bookmarkError, setBookmarkError] = useState("");
-  const [continueReading, setContinueReading] = useState<ContinueReading | null>(null);
+  const [continueWatching, setContinueWatching] = useState<ContinueWatching[]>([]);
   const [readingProgressError, setReadingProgressError] = useState("");
   const [activeCreatorGuideTab, setActiveCreatorGuideTab] = useState<"publishing" | "rules" | "images">("publishing");
   const [savingProfileVisibility, setSavingProfileVisibility] = useState(false);
@@ -159,79 +201,108 @@ export default function AccountContent({ section, children }: { section: Account
         setBio(loadedProfile.bio);
         setSocialLinks(loadedProfile.social_links);
       }
-      const { data: bookmarkRows, error: bookmarkLoadError } = await supabase
-        .from("bookmarks")
-        .select("created_at, comics(id, title, slug, genre, cover_key)")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-      if (bookmarkLoadError) {
-        console.error("Unable to load account bookmarks:", bookmarkLoadError);
-        setBookmarkError("Favorit belum dapat dimuat.");
-      } else {
-        setBookmarks((bookmarkRows ?? []).flatMap((row) => {
-          const comic = Array.isArray(row.comics) ? row.comics[0] : row.comics;
-          return comic ? [comic] : [];
-        }));
+      let favoriteRows: DramaFavoriteRow[] = [];
+      let watchRows: DramaWatchRow[] = [];
+      if (section === "overview" || section === "favorites") {
+        const { data, error } = await supabase
+          .from("drama_favorites")
+          .select("series_id, created_at, drama_series!inner(id, title, genre, cover_image_path, drama_seasons(season_number, drama_episodes(id, episode_number, title, thumbnail_path)))")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .returns<DramaFavoriteRow[]>();
+        if (error) {
+          console.error("Unable to load account drama favorites:", {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          });
+          setBookmarkError(error.code === "PGRST205"
+            ? "Fitur favorit drama belum tersedia. Jalankan supabase/drama-viewer-library.sql."
+            : "Favorit drama gagal dimuat. Coba muat ulang halaman.");
+        } else {
+          favoriteRows = data ?? [];
+        }
+      }
+      if (section === "overview" || section === "watching") {
+        const { data, error } = await supabase
+          .from("drama_episode_watch_progress")
+          .select("episode_id, position_seconds, duration_seconds, updated_at, drama_episodes!inner(id, episode_number, title, thumbnail_path, drama_seasons!inner(season_number, drama_series!inner(id, title, genre, cover_image_path)))")
+          .eq("user_id", user.id)
+          .order("updated_at", { ascending: false })
+          .limit(12)
+          .returns<DramaWatchRow[]>();
+        if (error) {
+          console.error("Unable to load account drama watch progress:", {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          });
+          setReadingProgressError(error.code === "PGRST205"
+            ? "Riwayat tontonan belum tersedia. Jalankan supabase/drama-viewer-library.sql."
+            : "Riwayat tontonan gagal dimuat. Coba muat ulang halaman.");
+        } else {
+          watchRows = data ?? [];
+        }
       }
 
-      const { data: history, error: historyError } = await supabase
-        .from("reading_history")
-        .select("chapter_id, last_page")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (historyError) {
-        console.error("Unable to load account reading history:", historyError);
-        setReadingProgressError("Riwayat bacamu belum dapat dimuat. Coba muat ulang halaman.");
-      } else if (history) {
-        const { data: chapter, error: chapterError } = await supabase
-          .from("chapters")
-          .select("id, title, chapter_number, comic_id")
-          .eq("id", history.chapter_id)
-          .maybeSingle();
-        if (chapterError) {
-          console.error("Unable to load the account reading chapter:", chapterError);
-          setReadingProgressError("Detail bacaan terakhir belum dapat dimuat.");
-        } else if (chapter) {
-          const [{ data: comic, error: comicError }, { count: pageCount, error: pageCountError }] = await Promise.all([
-            supabase
-              .from("comics")
-              .select("title, slug, genre, cover_key")
-              .eq("id", chapter.comic_id)
-              .maybeSingle(),
-            supabase
-              .from("pages")
-              .select("id", { count: "exact", head: true })
-              .eq("chapter_id", history.chapter_id),
-          ]);
-          if (comicError) {
-            console.error("Unable to load the account reading comic:", comicError);
-            setReadingProgressError("Informasi komik untuk bacaan terakhir belum dapat dimuat.");
-          } else if (pageCountError) {
-            console.error("Unable to load account reading page count:", pageCountError);
-            setReadingProgressError("Progres halaman untuk bacaan terakhir belum dapat dimuat.");
-          } else if (comic) {
-            const totalPages = pageCount ?? 0;
-            const lastPage = totalPages ? Math.min(Math.max(history.last_page, 1), totalPages) : Math.max(history.last_page, 1);
-            setContinueReading({
-              comicTitle: comic.title,
-              comicSlug: comic.slug,
-              genre: comic.genre,
-              coverUrl: comic.cover_key && publicUrl ? `${publicUrl.replace(/\/$/, "")}/${comic.cover_key}` : null,
-              chapterId: chapter.id,
-              chapterTitle: chapter.title,
-              chapterNumber: chapter.chapter_number,
-              lastPage,
-              pageCount: totalPages,
-            });
+      const mediaPaths = [...new Set([
+        ...watchRows.flatMap((row) => {
+          const episode = firstRelation(row.drama_episodes);
+          return episode?.thumbnail_path ? [episode.thumbnail_path] : [];
+        }),
+      ])];
+      const urlByPath = new Map<string, string>();
+      if (mediaPaths.length > 0) {
+        const { data, error } = await supabase.storage.from("drama-media").createSignedUrls(mediaPaths, 3600);
+        if (error) {
+          console.error("Unable to sign account drama artwork URLs:", error);
+          setBookmarkError((current) => current || "Sampul drama belum dapat dimuat.");
+          setReadingProgressError((current) => current || "Gambar riwayat tontonan belum dapat dimuat.");
+        } else {
+          for (const item of data ?? []) {
+            if (item.path && item.signedUrl) urlByPath.set(item.path, item.signedUrl);
           }
         }
       }
+      setFavoriteDramas(favoriteRows.flatMap((row) => {
+        const series = firstRelation(row.drama_series);
+        if (!series) return [];
+        const firstEpisode = (series.drama_seasons ?? [])
+          .flatMap((season) => (season.drama_episodes ?? []).map((episode) => ({ seasonNumber: season.season_number, episode })))
+          .sort((left, right) => left.seasonNumber - right.seasonNumber || left.episode.episode_number - right.episode.episode_number)[0]?.episode;
+        return [{
+          id: series.id,
+          title: series.title,
+          genre: series.genre,
+          coverUrl: getDramaCoverUrl(series.cover_image_path),
+          episodeId: firstEpisode?.id ?? null,
+        }];
+      }));
+      setContinueWatching(watchRows.flatMap((row) => {
+        const episode = firstRelation(row.drama_episodes);
+        const season = episode ? firstRelation(episode.drama_seasons) : null;
+        const series = season ? firstRelation(season.drama_series) : null;
+        if (!episode || !season || !series) return [];
+        return [{
+          episodeId: episode.id,
+          episodeTitle: episode.title,
+          seriesTitle: series.title,
+          genre: series.genre,
+          coverUrl: getDramaCoverUrl(series.cover_image_path),
+          thumbnailUrl: episode.thumbnail_path ? urlByPath.get(episode.thumbnail_path) ?? null : null,
+          seasonNumber: season.season_number,
+          episodeNumber: episode.episode_number,
+          positionSeconds: Math.max(0, row.position_seconds),
+          durationSeconds: Math.max(0, row.duration_seconds),
+          updatedAt: row.updated_at,
+        }];
+      }));
       setLoading(false);
     };
     loadAccount();
-  }, [router]);
+  }, [router, section]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -421,7 +492,7 @@ export default function AccountContent({ section, children }: { section: Account
 
   if (loading) return <main className="account-shell"><p className="account-loading">Memuat halaman akun...</p></main>;
 
-  const roleLabel = profile?.role ? roleLabels[profile.role] : "Pembaca";
+  const roleLabel = profile?.role ? roleLabels[profile.role] : "Penonton";
   const accountAvatar = profile?.avatar_key && publicUrl
     ? <Image src={`${publicUrl.replace(/\/$/, "")}/${profile.avatar_key}`} alt="" width={42} height={42} unoptimized />
     : <UserRound size={20} />;
@@ -433,8 +504,8 @@ export default function AccountContent({ section, children }: { section: Account
         <nav className="account-sidebar-nav" aria-label="Navigasi akun">
           <Link className={`account-nav-link${section === "overview" ? " active" : ""}`} href="/account" aria-current={section === "overview" ? "page" : undefined}><LayoutDashboard size={18} /><span>Ringkasan</span></Link>
           <Link className="account-nav-link" href="/"><Home size={18} /><span>Beranda</span></Link>
-          <p className="account-nav-label">Pembaca</p>
-          <Link className={`account-nav-link${section === "reading" ? " active" : ""}`} href="/account/reading" aria-current={section === "reading" ? "page" : undefined}><BookOpen size={18} /><span>Lanjut membaca</span></Link>
+          <p className="account-nav-label">Penonton</p>
+          <Link className={`account-nav-link${section === "watching" ? " active" : ""}`} href="/account/watching" aria-current={section === "watching" ? "page" : undefined}><Video size={18} /><span>Lanjut menonton</span></Link>
           <Link className={`account-nav-link${section === "favorites" ? " active" : ""}`} href="/account/favorites" aria-current={section === "favorites" ? "page" : undefined}><Bookmark size={18} /><span>Favorit</span></Link>
           <p className="account-nav-label">Akun</p>
           <Link className={`account-nav-link${section === "account-settings" ? " active" : ""}`} href="/account/account-settings" aria-current={section === "account-settings" ? "page" : undefined}><Settings2 size={18} /><span>Pengaturan</span></Link>
@@ -443,13 +514,13 @@ export default function AccountContent({ section, children }: { section: Account
         </nav>
         <div className="account-sidebar-user">
           <span className="account-user-avatar">{accountAvatar}</span>
-          <span className="account-user-copy"><strong>{profile?.display_name || "Pembaca"}</strong><small>{roleLabel}</small></span>
+          <span className="account-user-copy"><strong>{profile?.display_name || "Penonton"}</strong><small>{roleLabel}</small></span>
           <button className="account-logout" onClick={handleLogout} disabled={loggingOut}><LogOut size={17} /><span>{loggingOut ? "Keluar..." : "Keluar"}</span></button>
         </div>
       </aside>
       <div className={`account-main${profile?.role === "creator" ? " account-main-creator" : ""}${section === "creator-profile" ? " account-profile-focus" : ""}${section === "creator-guide" ? " account-guide-focus" : ""}${section !== "overview" ? " account-subpage" : ""}${isCreatorArea(section) ? " account-creator-area" : ""}${section === "comic-editor" ? " account-comic-editor-area" : ""}`}>
       <div className="account-mobile-header"><BrandLogo showName /><button className="account-logout" onClick={handleLogout} disabled={loggingOut}><LogOut size={16} /> {loggingOut ? "Keluar..." : "Keluar"}</button></div>
-      {!isCreatorArea(section) && section !== "comic-editor" && section !== "analitik-komik" && <header className="account-header"><p className="eyebrow">{section === "overview" ? "Ruang Bacamu" : "Akun"}</p><h1>{section === "overview" ? `Hai, ${profile?.display_name || "Pembaca"}.` : section === "reading" ? "Lanjut membaca" : section === "favorites" ? "Favorit" : section === "account-settings" ? "Pengaturan" : section === "creator-application" ? "Jadi kreator" : section === "creator-profile" ? "Profil kreator" : "Panduan Youvie"}</h1>{section === "overview" && <><p className="account-email">{email}</p><p className="account-email">{membership.ready ? `Paket ${READER_MEMBERSHIP_TIERS.find((item) => item.value === membership.tier)?.label || "Free"}` : "Memuat paket..."}</p></>}</header>}
+      {!isCreatorArea(section) && section !== "comic-editor" && section !== "analitik-komik" && <header className="account-header"><p className="eyebrow">{section === "overview" ? "Ruang Dramamu" : "Akun"}</p><h1>{section === "overview" ? `Hai, ${profile?.display_name || "Penonton"}.` : section === "watching" ? "Lanjut menonton" : section === "favorites" ? "Favorit drama" : section === "account-settings" ? "Pengaturan" : section === "creator-application" ? "Jadi kreator" : section === "creator-profile" ? "Profil kreator" : "Panduan Youvie"}</h1>{section === "overview" && <><p className="account-email">{email}</p><p className="account-email">{membership.ready ? `Paket ${READER_MEMBERSHIP_TIERS.find((item) => item.value === membership.tier)?.label || "Free"}` : "Memuat paket..."}</p></>}</header>}
       {section === "comic-editor" ? children : section === "analitik-komik" ? (
         profile?.role === "creator"
           ? <CreatorAnalytics />
@@ -458,48 +529,56 @@ export default function AccountContent({ section, children }: { section: Account
         ? <CreatorContent area={section} />
         : <>
       {section !== "creator-guide" && <section className={`account-grid ${section === "overview" ? "account-dashboard-grid" : "account-subpage-content"}`}>
-        {(section === "overview" || section === "reading") && <article className="account-panel account-panel-wide account-reading-panel" id="reading">
-          <div className="panel-heading"><div><p className="eyebrow">Lanjutkan dari sini</p><h2>Lanjutkan membaca</h2></div><BookOpen size={22} /></div>
+        {(section === "overview" || section === "watching") && <article className="account-panel account-panel-wide account-reading-panel" id="watching">
+          <div className="panel-heading"><div><p className="eyebrow">Terakhir diputar</p><h2>Lanjutkan menonton</h2></div><Video size={22} /></div>
           {readingProgressError
             ? <p className="account-reading-message" role="alert">{readingProgressError}</p>
-            : continueReading
-              ? <Link className="account-reading-card" href={`/comic/${encodeURIComponent(continueReading.comicSlug)}/chapter/${encodeURIComponent(continueReading.chapterId)}`}>
+            : continueWatching.length
+              ? <div className="account-drama-progress-list">{continueWatching.slice(0, section === "overview" ? 3 : 12).map((episode) => {
+                const completed = episode.durationSeconds > 0 && episode.positionSeconds >= episode.durationSeconds - 5;
+                const resumeAt = completed ? 0 : Math.floor(episode.positionSeconds);
+                const href = `/watch/${encodeURIComponent(episode.episodeId)}/player?time=${resumeAt}`;
+                const progress = episode.durationSeconds > 0 ? Math.min(100, (episode.positionSeconds / episode.durationSeconds) * 100) : 0;
+                return <Link className="account-reading-card" href={href} key={episode.episodeId}>
                   <span className="account-reading-cover">
-                    {continueReading.coverUrl
-                      ? <Image src={continueReading.coverUrl} alt={`Sampul ${continueReading.comicTitle}`} fill sizes="(max-width: 760px) 72px, 90px" unoptimized />
-                      : <BookOpen size={22} />}
+                    {episode.thumbnailUrl || episode.coverUrl
+                      ? <Image src={episode.thumbnailUrl || episode.coverUrl || ""} alt={`Sampul ${episode.seriesTitle}`} fill sizes="(max-width: 760px) 72px, 90px" unoptimized />
+                      : <Video size={22} />}
                   </span>
                   <span className="account-reading-info">
-                    <small>{getComicGenreLabel(continueReading.genre)}</small>
-                    <strong>{continueReading.comicTitle}</strong>
-                    <span>Episode {continueReading.chapterNumber} · {continueReading.chapterTitle}</span>
-                    <small className="account-reading-progress">Halaman {continueReading.lastPage}{continueReading.pageCount ? ` dari ${continueReading.pageCount}` : ""}</small>
-                    {continueReading.pageCount > 0 && <span className="account-reading-progressbar" aria-hidden="true"><i style={{ width: `${Math.min(100, (continueReading.lastPage / continueReading.pageCount) * 100)}%` }} /></span>}
+                    <small>{episode.genre || "Drama pendek"} · S{episode.seasonNumber} E{episode.episodeNumber}</small>
+                    <strong>{episode.seriesTitle}</strong>
+                    <span>{episode.episodeTitle}</span>
+                    <small className="account-reading-progress">{completed ? "Selesai ditonton" : `${Math.floor(episode.positionSeconds / 60)}:${String(Math.floor(episode.positionSeconds % 60)).padStart(2, "0")}${episode.durationSeconds ? ` dari ${Math.floor(episode.durationSeconds / 60)}:${String(Math.floor(episode.durationSeconds % 60)).padStart(2, "0")}` : ""}`}</small>
+                    {episode.durationSeconds > 0 && <span className="account-reading-progressbar" aria-hidden="true"><i style={{ width: `${progress}%` }} /></span>}
                   </span>
-                  <span className="account-reading-action">Lanjutkan membaca <ArrowRight size={16} /></span>
-                </Link>
+                  <span className="account-reading-action">{completed ? "Tonton lagi" : "Lanjutkan menonton"} <Play size={15} fill="currentColor" /></span>
+                </Link>;
+              })}</div>
               : <div className="account-reading-empty">
-                  <span className="empty-icon"><BookOpen size={23} /></span>
-                  <h3>Belum ada bacaan terakhir.</h3>
-                  <p>Komik yang kamu baca saat masuk akan tersimpan di sini.</p>
-                  <Link className="button button-dark" href="/#discover">Jelajahi komik</Link>
+                  <span className="empty-icon"><Video size={23} /></span>
+                  <h3>Belum ada tontonan terakhir.</h3>
+                  <p>Progres episode drama yang kamu tonton akan tersimpan di sini.</p>
+                  <Link className="button button-dark" href="/#drama-catalog">Jelajahi drama</Link>
                 </div>}
         </article>}
         {(section === "overview" || section === "favorites") && <article className="account-panel account-bookmark-panel" id="favorites">
-          <div className="panel-heading"><div><p className="eyebrow">Simpan untuk nanti</p><h2>Favorit</h2></div><Bookmark size={22} /></div>
-          {bookmarkError ? <p className="account-bookmark-message" role="alert">{bookmarkError} Jalankan supabase/comic-bookmarks.sql pada database.</p>
-            : bookmarks.length ? <div className="account-bookmark-list">{bookmarks.map((comic) => {
-              const coverUrl = comic.cover_key && publicUrl ? `${publicUrl.replace(/\/$/, "")}/${comic.cover_key}` : null;
-              return <Link className="account-bookmark-item" href={`/comic/${comic.slug}`} key={comic.id}>
-                <span className="account-bookmark-cover">{coverUrl ? <Image src={coverUrl} alt="" width={44} height={58} unoptimized /> : <Bookmark size={19} />}</span>
-                <span className="account-bookmark-copy"><strong>{comic.title}</strong><small>{getComicGenreLabel(comic.genre)}</small></span>
+          <div className="panel-heading"><div><p className="eyebrow">Simpan untuk nanti</p><h2>Favorit drama</h2></div><Bookmark size={22} /></div>
+          {bookmarkError ? <p className="account-bookmark-message" role="alert">{bookmarkError}</p>
+            : favoriteDramas.length ? <div className="account-bookmark-list">{favoriteDramas.slice(0, section === "overview" ? 4 : 50).map((drama) => {
+              const href = drama.episodeId
+                ? `/watch/${encodeURIComponent(drama.episodeId)}`
+                : "/#drama-catalog";
+              return <Link className="account-bookmark-item" href={href} key={drama.id}>
+                <span className="account-bookmark-cover">{drama.coverUrl ? <Image src={drama.coverUrl} alt="" fill sizes="48px" unoptimized /> : <Video size={19} />}</span>
+                <span className="account-bookmark-copy"><strong>{drama.title}</strong><small>{drama.genre || "Drama pendek"}</small></span>
                 <ArrowRight size={16} />
               </Link>;
             })}</div>
-            : <div className="account-empty compact"><div className="empty-icon"><Bookmark size={23} /></div><p>Belum ada komik favorit.</p><small>Simpan komik yang ingin kamu baca lagi nanti.</small><Link className="text-link" href="/#discover">Jelajahi komik <span>↗</span></Link></div>}
+            : <div className="account-empty compact"><div className="empty-icon"><Bookmark size={23} /></div><p>Belum ada drama favorit.</p><small>Simpan serial drama dari halaman beranda untuk ditonton nanti.</small><Link className="text-link" href="/#drama-catalog">Jelajahi drama <span>↗</span></Link></div>}
         </article>}
         {(section === "account-settings" || (section === "creator-profile" && profile?.role === "creator")) && <article className="account-panel account-settings-panel" id="account-settings">
-          <div className="panel-heading"><div><p className="eyebrow">Akun dan bacaan</p><h2>Profil dan preferensi</h2></div><Settings2 size={22} /></div>
+          <div className="panel-heading"><div><p className="eyebrow">Akun dan tontonan</p><h2>Profil dan preferensi</h2></div><Settings2 size={22} /></div>
           <div className="settings-row"><span>Jenis akun</span><strong>{roleLabel}</strong></div>
           <div className="settings-row"><span>Alamat email</span><strong>{email}</strong></div>
           <ReaderPreferencesPanel />

@@ -35,11 +35,9 @@ const statusLabels: Record<AdStatus, string> = {
   rejected: "Ditolak",
 };
 const placementLabels: Record<string, string> = {
-  home_banner: "Banner beranda",
-  catalog_grid_native: "Katalog komik",
-  comic_detail_sponsor: "Detail komik",
-  reader_mid_chapter: "Di sela halaman baca",
-  reader_episode_transition: "Antar episode",
+  drama_home_banner: "Banner beranda drama",
+  drama_feed_native: "Selingan feed video",
+  drama_episode_transition: "Transisi episode drama",
 };
 const creativeDevices: { value: CreativeDevice; label: string; icon: typeof Monitor }[] = [
   { value: "desktop", label: "Desktop", icon: Monitor },
@@ -59,7 +57,7 @@ function addDays(value: string, days: number) {
 
 async function publishCampaignsFromRequest(request: AdRequest) {
   const { data: slots, error: slotsError } = await supabase
-    .from("ad_slots")
+    .from("drama_ad_slots")
     .select("id, slot_key, is_active")
     .in("slot_key", request.placements);
   if (slotsError) throw slotsError;
@@ -77,8 +75,8 @@ async function publishCampaignsFromRequest(request: AdRequest) {
   }
 
   const { data: existingCampaigns, error: existingError } = await supabase
-    .from("sponsor_campaigns")
-    .select("id, sponsor_name, title, description, destination_url, image_url, image_url_tablet, image_url_mobile, slot_id")
+    .from("drama_sponsor_campaigns")
+    .select("id, sponsor_name, title, description, destination_url, image_url, image_url_tablet, image_url_mobile, slot_id, source_ad_request_id")
     .in("slot_id", availableSlots.map((slot) => slot.id));
   if (existingError) throw existingError;
 
@@ -98,7 +96,8 @@ async function publishCampaignsFromRequest(request: AdRequest) {
       && campaign.destination_url === request.destination_url
       && campaign.image_url === request.image_url
       && campaign.image_url_tablet === request.image_url_tablet
-      && campaign.image_url_mobile === request.image_url_mobile,
+      && campaign.image_url_mobile === request.image_url_mobile
+      && campaign.source_ad_request_id === request.id,
     );
 
     const values = {
@@ -110,14 +109,15 @@ async function publishCampaignsFromRequest(request: AdRequest) {
         image_url_tablet: request.image_url_tablet,
         image_url_mobile: request.image_url_mobile,
         slot_id: slot.id,
+        source_ad_request_id: request.id,
         starts_on: startsOn,
         ends_on: endsOn,
         status: "active",
         updated_at: new Date().toISOString(),
       };
     const result = existingCampaign
-      ? await supabase.from("sponsor_campaigns").update(values).eq("id", existingCampaign.id)
-      : await supabase.from("sponsor_campaigns").insert(values);
+        ? await supabase.from("drama_sponsor_campaigns").update(values).eq("id", existingCampaign.id)
+        : await supabase.from("drama_sponsor_campaigns").upsert(values, { onConflict: "source_ad_request_id,slot_id" });
     if (result.error) throw result.error;
     publishedCount += 1;
   }
@@ -187,26 +187,26 @@ function ReviewCard({ request, onUpdated }: { request: AdRequest; onUpdated: (re
       try {
         const publishedCount = await publishCampaignsFromRequest(request);
         const { error: updateError } = await supabase
-          .from("ad_requests")
+          .from("drama_ad_requests")
           .update({ status: "approved", admin_note: adminNote.trim(), updated_at: new Date().toISOString() })
           .eq("id", request.id);
         if (updateError) throw updateError;
         onUpdated({ ...request, status: "approved", admin_note: adminNote.trim() });
         setMessage(publishedCount
-          ? `Pengajuan disetujui. ${publishedCount} kampanye diaktifkan untuk sistem iklan publik.`
-          : "Pengajuan disetujui. Kampanyenya sudah aktif di sistem iklan publik.");
+          ? `Pengajuan disetujui. ${publishedCount} kampanye diaktifkan di inventaris iklan drama.`
+          : "Pengajuan disetujui. Kampanyenya sudah aktif di inventaris iklan drama.");
       } catch (publishError) {
         console.error("Unable to approve advertiser request and publish sponsor campaigns:", publishError);
         setMessage(publishError instanceof Error && (publishError.message.startsWith("Slot iklan belum tersedia:") || publishError.message.startsWith("Aktifkan slot iklan berikut"))
           ? publishError.message
-          : "Kampanye gagal diaktifkan. Pastikan slot dan tabel sponsor_campaigns tersedia, lalu coba lagi.");
+          : "Kampanye drama gagal diaktifkan. Pastikan supabase/drama-ads.sql sudah diterapkan, lalu coba lagi.");
       }
       setSaving(false);
       return;
     }
 
     const { data, error } = await supabase
-      .from("ad_requests")
+      .from("drama_ad_requests")
       .update({ status, admin_note: adminNote.trim(), updated_at: new Date().toISOString() })
       .eq("id", request.id)
       .select("id, advertiser_name, contact_email, contact_whatsapp, campaign_title, description, destination_url, image_url, image_url_tablet, image_url_mobile, placements, requested_start, requested_end, status, admin_note, created_at")
@@ -272,7 +272,7 @@ export default function AdRequestsPanel() {
     let active = true;
     const load = async () => {
       const { data, error } = await supabase
-        .from("ad_requests")
+        .from("drama_ad_requests")
         .select("id, advertiser_name, contact_email, contact_whatsapp, campaign_title, description, destination_url, image_url, image_url_tablet, image_url_mobile, placements, requested_start, requested_end, status, admin_note, created_at")
         .order("created_at", { ascending: false });
       if (!active) return;
@@ -283,7 +283,7 @@ export default function AdRequestsPanel() {
           console.error("Unable to load advertiser requests for review:", error);
         }
         setErrorMessage(isAdRequestSchemaError(error.code)
-          ? "Skema pengajuan iklan belum lengkap. Jalankan ulang supabase/ad-requests.sql di Supabase SQL Editor."
+          ? "Tabel pengajuan iklan drama belum tersedia. Jalankan supabase/drama-ads.sql di Supabase SQL Editor."
           : "Pengajuan iklan gagal dimuat. Periksa koneksi dan izin database.");
       } else {
         setRequests((data ?? []) as AdRequest[]);
@@ -294,9 +294,9 @@ export default function AdRequestsPanel() {
     return () => { active = false; };
   }, []);
 
-  if (loading) return <p className="admin-loading"><LoaderCircle className="spin" size={18} /> Memuat pengajuan iklan...</p>;
+  if (loading) return <p className="admin-loading"><LoaderCircle className="spin" size={18} /> Memuat pengajuan iklan drama...</p>;
   if (errorMessage) return <p className="admin-settings-error" role="alert">{errorMessage}</p>;
-  if (!requests.length) return <div className="admin-empty"><p>Belum ada pengajuan iklan.</p></div>;
+  if (!requests.length) return <div className="admin-empty"><p>Belum ada pengajuan iklan drama.</p></div>;
 
   return (
     <div className="admin-ad-requests-list">
@@ -311,7 +311,7 @@ export default function AdRequestsPanel() {
           onUpdated={(updated) => setRequests((current) => current.map((item) => item.id === updated.id ? updated : item))}
         />
       ) : (
-        <div className="admin-ad-request-list-cards" aria-label="Daftar pengajuan iklan">
+        <div className="admin-ad-request-list-cards" aria-label="Daftar pengajuan iklan drama">
           {requests.map((request) => (
             <button
               className="admin-ad-request-list-card"

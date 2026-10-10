@@ -4,11 +4,10 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Check, LoaderCircle, Megaphone, Pencil, Plus, ToggleLeft, ToggleRight, X } from "lucide-react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
-import { COMIC_GENRES, getComicGenreLabel } from "@/lib/comic-genres";
 
 type AdFormat = "banner" | "native" | "sponsor";
 type CampaignStatus = "draft" | "active" | "paused" | "completed";
-type TargetPlacement = "all" | "comic_detail" | "reader" | "episode_transition" | "both";
+type TargetPlacement = "all" | "series" | "feed" | "episode_transition" | "both";
 type AdSlot = {
   id: string;
   name: string;
@@ -18,7 +17,7 @@ type AdSlot = {
   is_active: boolean;
   created_at: string;
 };
-type PublishedComic = { id: string; title: string; slug: string };
+type PublishedSeries = { id: string; title: string; slug: string; genre: string };
 type SponsorCampaign = {
   id: string;
   sponsor_name: string;
@@ -29,7 +28,7 @@ type SponsorCampaign = {
   image_url_tablet: string | null;
   image_url_mobile: string | null;
   slot_id: string | null;
-  target_comic_id: string | null;
+  target_series_id: string | null;
   target_placement: TargetPlacement;
   target_genres: string[];
   source_ad_request_id: string | null;
@@ -62,7 +61,7 @@ const emptyCampaign = {
   image_url_tablet: "",
   image_url_mobile: "",
   slot_id: "",
-  target_comic_id: "",
+  target_series_id: "",
   target_placement: "all" as TargetPlacement,
   target_genres: [] as string[],
   starts_on: "",
@@ -96,16 +95,7 @@ type DatabaseError = { code?: string; message: string; details?: string | null; 
 
 function databaseErrorMessage(error: DatabaseError) {
   if (error.code === "42P01" || error.code === "PGRST205") {
-    return "Tabel iklan belum tersedia. Jalankan supabase/ads-management.sql di Supabase SQL Editor.";
-  }
-  if (error.code === "42703" && /source_ad_request_id/i.test(error.message)) {
-    return "Kolom penghubung kampanye dari pengajuan belum tersedia. Jalankan ulang supabase/ad-requests.sql di Supabase SQL Editor.";
-  }
-  if (error.code === "42703" && /image_url_(tablet|mobile)/i.test(error.message)) {
-    return "Kolom gambar responsif belum tersedia di database. Jalankan ulang supabase/ads-management.sql di Supabase SQL Editor, lalu muat ulang halaman.";
-  }
-  if (error.code === "42703" || error.code === "PGRST202") {
-    return "Skema penargetan minat belum diterapkan. Jalankan supabase/reader-profiling.sql setelah supabase/ads-management.sql di Supabase SQL Editor, lalu muat ulang halaman.";
+    return "Tabel iklan drama belum tersedia. Jalankan supabase/drama-ads.sql di Supabase SQL Editor.";
   }
   if (error.code === "42501" || error.code === "PGRST301") {
     return "Akses ditolak. Pastikan akun memiliki peran admin dan kebijakan database sudah diterapkan.";
@@ -130,9 +120,8 @@ function normalizeTargetGenres(genres: unknown): string[] {
 
 export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaigns" }) {
   const [slots, setSlots] = useState<AdSlot[]>([]);
-  const [publishedComics, setPublishedComics] = useState<PublishedComic[]>([]);
+  const [publishedSeries, setPublishedSeries] = useState<PublishedSeries[]>([]);
   const [campaigns, setCampaigns] = useState<SponsorCampaign[]>([]);
-  const [campaignSourceLinkReady, setCampaignSourceLinkReady] = useState(true);
   const [slotForm, setSlotForm] = useState(emptySlot);
   const [campaignForm, setCampaignForm] = useState(emptyCampaign);
   const [formVisible, setFormVisible] = useState(false);
@@ -149,50 +138,23 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      const [slotResult, campaignResult, comicsResult] = await Promise.all([
-        supabase.from("ad_slots").select("id, name, slot_key, format, description, is_active, created_at").order("created_at", { ascending: false }),
-        supabase.from("sponsor_campaigns").select("id, sponsor_name, title, description, destination_url, image_url, image_url_tablet, image_url_mobile, slot_id, target_comic_id, target_placement, target_genres, source_ad_request_id, starts_on, ends_on, status, created_at").order("created_at", { ascending: false }),
-        supabase.from("comics").select("id, title, slug").eq("status", "published").order("title"),
+      const [slotResult, campaignResult, seriesResult] = await Promise.all([
+        supabase.from("drama_ad_slots").select("id, name, slot_key, format, description, is_active, created_at").order("created_at", { ascending: false }),
+        supabase.from("drama_sponsor_campaigns").select("id, sponsor_name, title, description, destination_url, image_url, image_url_tablet, image_url_mobile, slot_id, target_series_id, target_placement, target_genres, source_ad_request_id, starts_on, ends_on, status, created_at").order("created_at", { ascending: false }),
+        supabase.from("drama_series").select("id, title, slug, genre").eq("status", "published").order("title"),
       ]);
       if (cancelled) return;
-      let campaignRows = campaignResult.data;
-      let campaignError = campaignResult.error;
-      let sourceRequestLinkNeedsMigration = false;
-      if (campaignError?.code === "42703" && /source_ad_request_id/i.test(campaignError.message)) {
-        console.warn("Sponsor campaign source links are unavailable until supabase/ad-requests.sql is applied.", {
-          code: campaignError.code,
-          message: campaignError.message,
-        });
-        const fallbackResult = await supabase
-          .from("sponsor_campaigns")
-          .select("id, sponsor_name, title, description, destination_url, image_url, image_url_tablet, image_url_mobile, slot_id, target_comic_id, target_placement, target_genres, starts_on, ends_on, status, created_at")
-          .order("created_at", { ascending: false });
-        campaignRows = fallbackResult.data?.map((campaign) => ({ ...campaign, source_ad_request_id: null })) ?? null;
-        campaignError = fallbackResult.error;
-        sourceRequestLinkNeedsMigration = !fallbackResult.error;
-      }
-      const error = slotResult.error || campaignError || comicsResult.error;
+      const error = slotResult.error || campaignResult.error || seriesResult.error;
       if (error) {
-        if (error.code === "42703" && /source_ad_request_id/i.test(error.message)) {
-          console.warn("Sponsor campaign source links are unavailable until supabase/ad-requests.sql is applied.", {
-            code: error.code,
-            message: error.message,
-          });
-        } else {
-          logDatabaseError("Unable to load ads management data:", error);
-        }
+        logDatabaseError("Unable to load drama ads management data:", error);
         setMessage(databaseErrorMessage(error));
       } else {
         setSlots((slotResult.data ?? []) as AdSlot[]);
-        setCampaignSourceLinkReady(!sourceRequestLinkNeedsMigration);
-        setCampaigns((campaignRows ?? []).map((campaign) => ({
+        setCampaigns((campaignResult.data ?? []).map((campaign) => ({
           ...campaign,
           target_genres: normalizeTargetGenres(campaign.target_genres),
         })) as SponsorCampaign[]);
-        setPublishedComics((comicsResult.data ?? []) as PublishedComic[]);
-        if (sourceRequestLinkNeedsMigration) {
-          setMessage("Kampanye sponsor dimuat. Jalankan ulang supabase/ad-requests.sql untuk menghubungkan dan menandai kampanye dari pengajuan iklan.");
-        }
+        setPublishedSeries((seriesResult.data ?? []) as PublishedSeries[]);
       }
       setLoading(false);
     };
@@ -218,8 +180,8 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
       updated_at: new Date().toISOString(),
     };
     const result = slotForm.id
-      ? await supabase.from("ad_slots").update(values).eq("id", slotForm.id).select("id, name, slot_key, format, description, is_active, created_at").single()
-      : await supabase.from("ad_slots").insert(values).select("id, name, slot_key, format, description, is_active, created_at").single();
+      ? await supabase.from("drama_ad_slots").update(values).eq("id", slotForm.id).select("id, name, slot_key, format, description, is_active, created_at").single()
+      : await supabase.from("drama_ad_slots").insert(values).select("id, name, slot_key, format, description, is_active, created_at").single();
     if (result.error) {
       logDatabaseError("Unable to save ad slot:", result.error);
       setMessage(databaseErrorMessage(result.error));
@@ -264,15 +226,15 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
       setMessage("Isi tanggal mulai dan tanggal selesai kampanye.");
       return;
     }
-    if (campaignForm.target_comic_id && campaignForm.target_placement === "all") {
-      setMessage("Pilih penempatan iklan untuk komik ini.");
+    if (campaignForm.target_series_id && campaignForm.target_placement === "all") {
+      setMessage("Pilih penempatan iklan untuk serial drama ini.");
       return;
     }
-    if (campaignForm.status === "active" && campaignForm.target_comic_id && !publishedComics.some((comic) => comic.id === campaignForm.target_comic_id)) {
-      setMessage("Komik target tidak ditemukan atau belum diterbitkan.");
+    if (campaignForm.status === "active" && campaignForm.target_series_id && !publishedSeries.some((item) => item.id === campaignForm.target_series_id)) {
+      setMessage("Serial drama target tidak ditemukan atau belum diterbitkan.");
       return;
     }
-    if (campaignForm.status === "active" && !campaignForm.target_comic_id && !slots.some((slot) => slot.id === campaignForm.slot_id && slot.is_active)) {
+    if (campaignForm.status === "active" && !campaignForm.target_series_id && !slots.some((slot) => slot.id === campaignForm.slot_id && slot.is_active)) {
       setMessage("Pilih slot iklan yang aktif sebelum mengaktifkan kampanye umum.");
       return;
     }
@@ -286,8 +248,8 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
       image_url: imageUrl || null,
       image_url_tablet: campaignForm.image_url_tablet || null,
       image_url_mobile: campaignForm.image_url_mobile || null,
-      slot_id: campaignForm.target_comic_id ? null : campaignForm.slot_id || null,
-      target_comic_id: campaignForm.target_comic_id || null,
+      slot_id: campaignForm.target_series_id ? null : campaignForm.slot_id || null,
+      target_series_id: campaignForm.target_series_id || null,
       target_placement: campaignForm.target_placement,
       target_genres: normalizeTargetGenres(campaignForm.target_genres),
       starts_on: campaignForm.starts_on,
@@ -296,18 +258,13 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
       updated_at: new Date().toISOString(),
     };
     const result = campaignForm.id
-      ? await supabase.from("sponsor_campaigns").update(values).eq("id", campaignForm.id).select("id, sponsor_name, title, description, destination_url, image_url, image_url_tablet, image_url_mobile, slot_id, target_comic_id, target_placement, target_genres, starts_on, ends_on, status, created_at").single()
-      : await supabase.from("sponsor_campaigns").insert(values).select("id, sponsor_name, title, description, destination_url, image_url, image_url_tablet, image_url_mobile, slot_id, target_comic_id, target_placement, target_genres, starts_on, ends_on, status, created_at").single();
+      ? await supabase.from("drama_sponsor_campaigns").update(values).eq("id", campaignForm.id).select("id, sponsor_name, title, description, destination_url, image_url, image_url_tablet, image_url_mobile, slot_id, target_series_id, target_placement, target_genres, source_ad_request_id, starts_on, ends_on, status, created_at").single()
+      : await supabase.from("drama_sponsor_campaigns").insert(values).select("id, sponsor_name, title, description, destination_url, image_url, image_url_tablet, image_url_mobile, slot_id, target_series_id, target_placement, target_genres, source_ad_request_id, starts_on, ends_on, status, created_at").single();
     if (result.error) {
       logDatabaseError("Unable to save sponsor campaign:", result.error);
       setMessage(databaseErrorMessage(result.error));
     } else {
-      const saved = {
-        ...result.data,
-        source_ad_request_id: campaignSourceLinkReady
-          ? campaigns.find((campaign) => campaign.id === result.data.id)?.source_ad_request_id ?? null
-          : null,
-      } as SponsorCampaign;
+      const saved = result.data as SponsorCampaign;
       setCampaigns((current) => campaignForm.id
         ? current.map((campaign) => campaign.id === saved.id ? saved : campaign)
         : [saved, ...current]);
@@ -324,7 +281,7 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
     setMessage("");
     if (slot.is_active) {
       const { data: activeCampaign, error: campaignError } = await supabase
-        .from("sponsor_campaigns")
+        .from("drama_sponsor_campaigns")
         .select("id")
         .eq("slot_id", slot.id)
         .eq("status", "active")
@@ -342,7 +299,7 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
         return;
       }
     }
-    const { data, error } = await supabase.from("ad_slots").update({ is_active: !slot.is_active, updated_at: new Date().toISOString() }).eq("id", slot.id).select("id").maybeSingle();
+    const { data, error } = await supabase.from("drama_ad_slots").update({ is_active: !slot.is_active, updated_at: new Date().toISOString() }).eq("id", slot.id).select("id").maybeSingle();
     if (error || !data) {
       const failure = error || { message: "Slot tidak ditemukan atau tidak dapat diubah." };
       console.error("Unable to update ad slot status:", failure);
@@ -356,7 +313,7 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
   const updateCampaignStatus = async (campaign: SponsorCampaign, status: CampaignStatus) => {
     setWorkingId(campaign.id);
     setMessage("");
-    const { data, error } = await supabase.from("sponsor_campaigns").update({ status, updated_at: new Date().toISOString() }).eq("id", campaign.id).select("id").maybeSingle();
+    const { data, error } = await supabase.from("drama_sponsor_campaigns").update({ status, updated_at: new Date().toISOString() }).eq("id", campaign.id).select("id").maybeSingle();
     if (error || !data) {
       const failure = error || { message: "Kampanye tidak ditemukan atau tidak dapat diubah." };
       console.error("Unable to update sponsor campaign status:", failure);
@@ -375,7 +332,7 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
       image_url_tablet: campaign.image_url_tablet || "",
       image_url_mobile: campaign.image_url_mobile || "",
       slot_id: campaign.slot_id || "",
-      target_comic_id: campaign.target_comic_id || "",
+      target_series_id: campaign.target_series_id || "",
       target_placement: campaign.target_placement || "all",
     });
     setCampaignUrlErrors({ destination_url: "", image_url: "" });
@@ -454,8 +411,9 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
     }
   };
 
-  const isHomeBanner = !campaignForm.target_comic_id
-    && slots.find((slot) => slot.id === campaignForm.slot_id)?.slot_key === "home_banner";
+  const isHomeBanner = !campaignForm.target_series_id
+    && slots.find((slot) => slot.id === campaignForm.slot_id)?.slot_key === "drama_home_banner";
+  const publishedGenres = [...new Set(publishedSeries.map((series) => series.genre.trim()).filter(Boolean))];
   const imageRecommendations = isHomeBanner
     ? { desktop: "1200 × 400 px", tablet: "768 × 360 px", mobile: "720 × 480 px" }
     : { desktop: "1200 × 600 px", tablet: "900 × 600 px", mobile: "720 × 900 px" };
@@ -467,6 +425,7 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
   return (
     <div className="ads-management-panel">
       {message && <p className="admin-message" role={message.startsWith("Slot iklan berhasil") || message.startsWith("Kampanye sponsor berhasil") ? "status" : "alert"}>{message}</p>}
+      {mode === "campaigns" && <p className="ads-list-summary">Kampanye dan pengajuan ini disimpan terpisah dari data iklan komik lama. Penayangan kampanye di feed publik belum diaktifkan oleh halaman admin ini.</p>}
       <div className="ads-management-grid ads-management-grid-single">
         {mode === "slots" && <>
         <section className="ads-management-card" aria-labelledby="ad-slots-title">
@@ -560,12 +519,12 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
               ))}
             </div>
             <label>URL gambar komputer (opsional)<input type="text" inputMode="url" aria-invalid={Boolean(campaignUrlErrors.image_url)} aria-describedby="campaign-image-help" value={campaignForm.image_url} onChange={(event) => { setCampaignForm((current) => ({ ...current, image_url: event.target.value })); setCampaignUrlErrors((current) => ({ ...current, image_url: "" })); }} onBlur={() => normalizeCampaignUrlField("image_url")} placeholder="https://contoh.id/banner.jpg" />{campaignUrlErrors.image_url ? <small className="ads-field-error" id="campaign-image-help" role="alert">{campaignUrlErrors.image_url}</small> : <small id="campaign-image-help">Opsional. URL ini menjadi gambar untuk komputer dan gambar pengganti untuk perangkat lain.</small>}</label>
-            <label>Target komik<select value={campaignForm.target_comic_id} onChange={(event) => setCampaignForm((current) => ({ ...current, target_comic_id: event.target.value, slot_id: event.target.value ? "" : current.slot_id, target_placement: event.target.value ? current.target_placement === "all" ? "comic_detail" : current.target_placement : "all" }))}><option value="">Semua komik / penempatan slot</option>{publishedComics.map((comic) => <option value={comic.id} key={comic.id}>{comic.title}</option>)}</select><small>Kosongkan untuk memakai slot umum. Pilih komik untuk menargetkan kampanye hanya ke judul tersebut.</small></label>
+            <label>Target serial drama<select value={campaignForm.target_series_id} onChange={(event) => setCampaignForm((current) => ({ ...current, target_series_id: event.target.value, slot_id: event.target.value ? "" : current.slot_id, target_placement: event.target.value ? current.target_placement === "all" ? "series" : current.target_placement : "all" }))}><option value="">Semua drama / penempatan slot</option>{publishedSeries.map((series) => <option value={series.id} key={series.id}>{series.title}</option>)}</select><small>Kosongkan untuk memakai slot umum. Pilih serial untuk membatasi kampanye ke drama tersebut.</small></label>
             <fieldset className="campaign-genre-targeting">
-              <legend>Target minat genre <span>(opsional)</span></legend>
-              <p>Tanpa pilihan genre, kampanye dapat ditayangkan untuk semua pembaca. Jika dipilih, iklan dapat dicocokkan dengan komik yang sedang dibaca atau minat pembaca yang menyetujui personalisasi.</p>
+              <legend>Target genre drama <span>(opsional)</span></legend>
+              <p>Kosongkan agar kampanye tidak dibatasi genre. Pilihan genre berasal dari serial drama yang sudah diterbitkan.</p>
               <div className="reader-interest-options">
-                {COMIC_GENRES.map((genre) => (
+                {publishedGenres.map((genre) => (
                   <label className="reader-interest-option" key={genre}>
                     <input
                       type="checkbox"
@@ -580,12 +539,13 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
                         };
                       })}
                     />
-                    <span>{getComicGenreLabel(genre)}</span>
+                    <span>{genre}</span>
                   </label>
                 ))}
+                {!publishedGenres.length && <small>Genre akan tersedia setelah serial drama diterbitkan.</small>}
               </div>
             </fieldset>
-            {campaignForm.target_comic_id ? <label>Penempatan untuk komik ini<select value={campaignForm.target_placement} onChange={(event) => setCampaignForm((current) => ({ ...current, target_placement: event.target.value as TargetPlacement }))}><option value="comic_detail">Halaman detail komik</option><option value="reader">Halaman baca (tengah bab)</option><option value="episode_transition">Antar episode</option><option value="both">Detail dan halaman baca</option></select></label> : <label>Slot<select value={campaignForm.slot_id} onChange={(event) => setCampaignForm((current) => ({ ...current, slot_id: event.target.value }))}><option value="">Pilih slot aktif</option>{slots.filter((slot) => slot.is_active || slot.id === campaignForm.slot_id).map((slot) => <option value={slot.id} key={slot.id}>{slot.name}{slot.is_active ? "" : " (nonaktif)"}</option>)}</select></label>}
+            {campaignForm.target_series_id ? <label>Penempatan untuk serial ini<select value={campaignForm.target_placement} onChange={(event) => setCampaignForm((current) => ({ ...current, target_placement: event.target.value as TargetPlacement }))}><option value="series">Halaman serial</option><option value="feed">Feed video drama</option><option value="episode_transition">Antar episode</option><option value="both">Serial dan feed drama</option></select></label> : <label>Slot drama<select value={campaignForm.slot_id} onChange={(event) => setCampaignForm((current) => ({ ...current, slot_id: event.target.value }))}><option value="">Pilih slot aktif</option>{slots.filter((slot) => slot.is_active || slot.id === campaignForm.slot_id).map((slot) => <option value={slot.id} key={slot.id}>{slot.name}{slot.is_active ? "" : " (nonaktif)"}</option>)}</select></label>}
             <div className="ads-form-two-columns">
               <label>Status<select value={campaignForm.status} onChange={(event) => setCampaignForm((current) => ({ ...current, status: event.target.value as CampaignStatus }))}>{Object.entries(campaignStatusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
             </div>
@@ -604,21 +564,21 @@ export default function AdsManagementPanel({ mode }: { mode: "slots" | "campaign
               <thead><tr><th>Kampanye</th><th>Sponsor</th><th>Penempatan</th><th>Periode</th><th>Status</th><th>Aksi</th></tr></thead>
               <tbody>{campaigns.map((campaign) => {
                 const slot = slots.find((item) => item.id === campaign.slot_id);
-                const targetComic = publishedComics.find((item) => item.id === campaign.target_comic_id);
-                const placementLabel = campaign.target_placement === "comic_detail"
-                  ? "Detail komik"
-                  : campaign.target_placement === "reader"
-                    ? "Halaman baca"
+                const targetSeries = publishedSeries.find((item) => item.id === campaign.target_series_id);
+                const placementLabel = campaign.target_placement === "series"
+                  ? "Halaman serial"
+                  : campaign.target_placement === "feed"
+                    ? "Feed drama"
                     : campaign.target_placement === "episode_transition"
                       ? "Antar episode"
                     : campaign.target_placement === "both"
-                      ? "Detail & baca"
-                      : "Semua komik";
+                      ? "Serial & feed"
+                      : "Semua drama";
                 const statusClass = campaign.status === "active" ? "approved" : campaign.status === "draft" ? "pending" : "rejected";
                 return <tr key={campaign.id}>
                   <td><strong>{campaign.title}</strong>{campaign.source_ad_request_id && <small>Dari pengajuan iklan</small>}{campaign.description && <small>{campaign.description}</small>}</td>
                   <td>{campaign.sponsor_name}</td>
-                  <td>{targetComic ? <><strong>{targetComic.title}</strong><small>{placementLabel}</small></> : slot ? <><strong>{slot.name}</strong><small>{formatLabels[slot.format]}{slot.is_active ? "" : " · Nonaktif"}</small></> : <span className="ads-list-muted">Belum ditentukan</span>}</td>
+                  <td>{targetSeries ? <><strong>{targetSeries.title}</strong><small>{placementLabel}</small></> : slot ? <><strong>{slot.name}</strong><small>{formatLabels[slot.format]}{slot.is_active ? "" : " · Nonaktif"}</small></> : <span className="ads-list-muted">Belum ditentukan</span>}</td>
                   <td>{new Date(`${campaign.starts_on}T00:00:00`).toLocaleDateString("id-ID")}<small>s.d. {new Date(`${campaign.ends_on}T00:00:00`).toLocaleDateString("id-ID")}</small></td>
                   <td><span className={`request-status request-${statusClass}`}>{campaignStatusLabels[campaign.status]}</span></td>
                   <td><div className="ads-item-actions">

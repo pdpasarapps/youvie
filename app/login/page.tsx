@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, CheckCircle2, LoaderCircle, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import BrandLogo from "@/components/brand-logo";
 import { getComicGenreLabel, MAX_READER_INTEREST_GENRES, READER_INTEREST_GENRES } from "@/lib/reader-interests";
 
 const supabase = createClient();
@@ -139,30 +138,26 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="auth-shell">
-      <Link className="auth-back" href="/"><ArrowLeft size={16} /> Kembali ke beranda</Link>
+    <main className="auth-shell login-shell">
+      <Link className="auth-back" href="/" aria-label="Kembali ke beranda"><ArrowLeft size={16} /></Link>
       <section className="auth-layout">
         <div className="auth-intro">
-          <BrandLogo showName />
-          <p className="eyebrow"><span /> Cerita pilihanmu, kapan saja</p>
-          <h1>Simpan cerita<br /><em>favoritmu.</em></h1>
-          <p>Masuk untuk menyimpan riwayat baca, favorit, dan preferensimu di mana pun kamu membaca.</p>
+          <Link className="login-brand drama-wordmark" href="/" aria-label="YouVie beranda">You<span>Vie.</span></Link>
         </div>
         <div className="auth-card">
-          <div className="auth-card-top"><div className="auth-icon"><UserRound size={20} /></div><span>{signedInEmail ? "Akun" : mode === "login" ? "Selamat datang kembali" : "Pembaca baru"}</span></div>
+          <div className="auth-card-top"><div className="auth-icon"><UserRound size={20} /></div><span>{signedInEmail ? "Akun YouVie" : mode === "login" ? "Senang jumpa lagi" : "Mulai perjalananmu"}</span></div>
           {signedInEmail ? (
             <div className="signed-in-state"><CheckCircle2 size={32} /><h2>Kamu sudah masuk.</h2><p>{signedInEmail}</p>{error && <p className="form-error" role="alert">{error}</p>}{message && <p className="form-message" role="status">{message}</p>}<button className="button button-dark auth-submit" onClick={handleSignOut} disabled={loading}>{loading ? "Sedang keluar..." : "Keluar"}</button></div>
           ) : (
             <>
-              <h2>{mode === "login" ? "Buka ruang bacamu" : "Buat akun pembaca"}</h2>
-              <p className="auth-subtitle">{mode === "login" ? "Lanjutkan membaca dari bagian terakhir." : "Mulai membaca hanya dalam beberapa langkah."}</p>
+              <h2>{mode === "login" ? "Masuk ke YouVie" : "Buat akun YouVie"}</h2>
               <form onSubmit={handleSubmit} className="auth-form">
                 {mode === "signup" && <label><span>Nama tampilan</span><div className="input-wrap"><UserRound size={17} /><input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Kamu ingin dipanggil apa?" /></div></label>}
                 <label><span>Email</span><div className="input-wrap"><Mail size={17} /><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="kamu@contoh.id" /></div></label>
                 <label><span>Kata sandi</span><div className="input-wrap"><LockKeyhole size={17} /><input type="password" required minLength={6} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Minimal 6 karakter" /></div></label>
                 {mode === "signup" && (
                   <fieldset className="reader-interest-quiz">
-                    <legend>Genre bacaan yang kamu sukai <span>(opsional)</span></legend>
+                    <legend>Genre drama yang kamu sukai <span>(opsional)</span></legend>
                     <p>Pilih hingga {MAX_READER_INTEREST_GENRES} genre. Kamu bisa melewati atau mengubahnya nanti.</p>
                     <div className="reader-interest-options">
                       {READER_INTEREST_GENRES.map((genre) => (
@@ -174,7 +169,7 @@ export default function LoginPage() {
                     </div>
                     <label className="reader-interest-consent">
                       <input type="checkbox" checked={personalizedAdsConsent} onChange={(event) => setPersonalizedAdsConsent(event.target.checked)} />
-                      <span><strong>Saya setuju menerima iklan yang dipersonalisasi</strong><small>Jika tidak dicentang, iklan tetap dapat disesuaikan dengan genre komik yang sedang dibaca, tanpa menggunakan pilihan minat profilmu. Persetujuan ini dapat diubah kapan saja di Pengaturan akun.</small></span>
+                      <span><strong>Saya setuju menerima iklan yang dipersonalisasi</strong><small>Jika tidak dicentang, iklan tetap dapat disesuaikan dengan genre drama yang sedang ditonton, tanpa menggunakan pilihan minat profilmu. Persetujuan ini dapat diubah kapan saja di Pengaturan akun.</small></span>
                     </label>
                   </fieldset>
                 )}

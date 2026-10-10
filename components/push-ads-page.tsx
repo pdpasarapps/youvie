@@ -41,11 +41,9 @@ const maxCreativeSourceSize = 25 * 1024 * 1024;
 const creativeMimeTypes = ["image/jpeg", "image/png", "image/webp"];
 const isAdRequestSchemaError = (code: string) => ["42P01", "42703", "PGRST204", "PGRST205"].includes(code);
 const placementOptions = [
-  { value: "home_banner", label: "Banner beranda" },
-  { value: "catalog_grid_native", label: "Di antara katalog komik" },
-  { value: "comic_detail_sponsor", label: "Halaman detail komik" },
-  { value: "reader_mid_chapter", label: "Di sela halaman baca" },
-  { value: "reader_episode_transition", label: "Antar episode" },
+  { value: "drama_home_banner", label: "Banner beranda drama" },
+  { value: "drama_feed_native", label: "Di antara video drama" },
+  { value: "drama_episode_transition", label: "Transisi antar episode" },
 ];
 const statusLabels: Record<AdStatus, string> = {
   pending: "Menunggu tinjauan",
@@ -84,9 +82,9 @@ function PushAdsPreview({
   const [previewDevice, setPreviewDevice] = useState<CreativeDevice>("desktop");
   const previewUrl = creativeFiles[previewDevice]?.previewUrl ?? "";
   const activePlacement = placements.includes(placement) ? placement : placements[0] ?? "";
-  const displayPlacement = activePlacement || "home_banner";
-  const readerPlacement = displayPlacement === "reader_mid_chapter" || displayPlacement === "reader_episode_transition";
-  const placementLabel = placementOptions.find((item) => item.value === displayPlacement)?.label ?? "Banner beranda";
+  const displayPlacement = activePlacement || "drama_home_banner";
+  const readerPlacement = displayPlacement === "drama_feed_native" || displayPlacement === "drama_episode_transition";
+  const placementLabel = placementOptions.find((item) => item.value === displayPlacement)?.label ?? "Banner beranda drama";
 
   return (
     <section className="push-ads-preview" aria-labelledby="push-ads-preview-title">
@@ -123,7 +121,7 @@ function PushAdsPreview({
             <div className="push-ads-preview-copy">
               <small>{advertiserName.trim() || "Nama pengiklan"}</small>
               <strong>{campaignTitle.trim() || "Nama kampanye atau produk"}</strong>
-              <p>{description.trim() || "Deskripsi iklan dan informasi yang ingin disampaikan kepada pembaca akan tampil di sini."}</p>
+              <p>{description.trim() || "Deskripsi iklan dan informasi yang ingin disampaikan kepada penonton drama akan tampil di sini."}</p>
               <span className="push-ads-preview-cta">Kunjungi <ExternalLink size={13} /></span>
             </div>
           </div>
@@ -204,11 +202,11 @@ function ImageSizeGuide({
         ))}
       </div>
       {includesHomeBanner && includesOtherPlacements
-        ? <small>Untuk penempatan selain banner beranda, gunakan desktop 1200 × 600 px, tablet 900 × 600 px, dan mobile 720 × 900 px.</small>
-        : !includesHomeBanner && <small>Jika memilih banner beranda, rekomendasinya desktop 1200 × 400 px, tablet 768 × 360 px, dan mobile 720 × 480 px.</small>}
+        ? <small>Untuk penempatan selain banner beranda drama, gunakan desktop 1200 × 600 px, tablet 900 × 600 px, dan mobile 720 × 900 px.</small>
+        : !includesHomeBanner && <small>Jika memilih banner beranda drama, rekomendasinya desktop 1200 × 400 px, tablet 768 × 360 px, dan mobile 720 × 480 px.</small>}
       {includesEpisodeTransition && <small>Untuk iklan antar episode desktop, gambar berada di kolom kiri (sekitar 56% lebar) dan ditampilkan dengan cover dari atas. Siapkan gambar sekitar 1200 × 1000 px (6:5) bila fokus pada penempatan ini; gambar potret dapat terpotong di bagian bawah. Jaga logo dan teks penting di area atas.</small>}
-      {includesEpisodeTransition && includesHomeBanner && <small>Banner beranda dan antar episode memiliki rasio berbeda. Karena satu berkas dipakai untuk penempatan yang dipilih, crop mengikuti rasio banner beranda; ajukan kampanye terpisah jika membutuhkan materi antar episode yang disusun khusus.</small>}
-      <small>JPG, PNG, atau WebP. Iklan di halaman baca biasa menampilkan gambar utuh; jika materi tablet atau mobile kosong, gambar desktop menjadi pengganti.</small>
+      {includesEpisodeTransition && includesHomeBanner && <small>Banner beranda drama dan transisi episode memiliki rasio berbeda. Karena satu berkas dipakai untuk penempatan yang dipilih, crop mengikuti rasio banner; ajukan kampanye terpisah bila membutuhkan materi transisi yang disusun khusus.</small>}
+      <small>JPG, PNG, atau WebP. Jika materi tablet atau mobile kosong, gambar desktop menjadi pengganti.</small>
     </div>
   );
 }
@@ -280,18 +278,18 @@ export default function PushAdsPage() {
       }
 
       const { data: rows, error: requestError } = await supabase
-        .from("ad_requests")
+        .from("drama_ad_requests")
         .select("id, advertiser_name, campaign_title, description, destination_url, image_url, image_url_tablet, image_url_mobile, placements, requested_start, requested_end, status, admin_note, created_at")
         .eq("user_id", data.user.id)
         .order("created_at", { ascending: false });
       if (!active) return;
       if (requestError) {
         if (isAdRequestSchemaError(requestError.code)) {
-          console.warn("Advertiser submissions are unavailable because public.ad_requests is not installed:", {
+          console.warn("Advertiser submissions are unavailable because public.drama_ad_requests is not installed:", {
             code: requestError.code,
             message: requestError.message,
           });
-          setErrorMessage("Skema pengajuan iklan belum lengkap. Admin perlu menjalankan ulang supabase/ad-requests.sql di Supabase SQL Editor, lalu muat ulang halaman.");
+          setErrorMessage("Tabel pengajuan iklan drama belum tersedia. Admin perlu menjalankan supabase/drama-ads.sql di Supabase SQL Editor, lalu muat ulang halaman.");
         } else {
           console.error("Unable to load advertiser submissions:", {
             code: requestError.code,
@@ -345,8 +343,8 @@ export default function PushAdsPage() {
       setErrorMessage("Gambar sumber maksimal 25 MB agar dapat diproses dengan lancar di perangkat.");
       return;
     }
-    const hasHomeBanner = placements.includes("home_banner");
-    const isEpisodeTransition = placements.includes("reader_episode_transition");
+    const hasHomeBanner = placements.includes("drama_home_banner");
+    const isEpisodeTransition = placements.includes("drama_episode_transition");
     const width = device === "desktop" ? 1200 : device === "tablet" ? hasHomeBanner ? 768 : 900 : 720;
     const height = device === "desktop"
       ? isEpisodeTransition && !hasHomeBanner ? 1000 : hasHomeBanner ? 400 : 600
@@ -385,23 +383,23 @@ export default function PushAdsPage() {
       const { file } = asset;
       const path = `${userId}/${crypto.randomUUID()}-${device}.${extensions[file.type]}`;
       const { error: uploadError } = await supabase.storage
-        .from("ad-creatives")
+        .from("drama-ad-creatives")
         .upload(path, file, { cacheControl: "3600", contentType: file.type, upsert: false });
       if (uploadError) {
         console.error(`Unable to upload ${device} advertiser creative:`, uploadError);
         if (uploadedPaths.length) {
-          const { error: cleanupError } = await supabase.storage.from("ad-creatives").remove(uploadedPaths);
+          const { error: cleanupError } = await supabase.storage.from("drama-ad-creatives").remove(uploadedPaths);
           if (cleanupError) console.error("Unable to clean up advertiser creatives after upload failure:", cleanupError);
         }
         setSaving(false);
-        setErrorMessage("Gambar gagal diunggah. Pastikan admin sudah menyiapkan penyimpanan iklan, lalu coba lagi.");
+        setErrorMessage("Gambar gagal diunggah. Pastikan admin sudah menyiapkan penyimpanan iklan drama, lalu coba lagi.");
         return;
       }
       uploadedPaths.push(path);
-      imageUrls[device] = supabase.storage.from("ad-creatives").getPublicUrl(path).data.publicUrl;
+      imageUrls[device] = supabase.storage.from("drama-ad-creatives").getPublicUrl(path).data.publicUrl;
     }
     const { data, error } = await supabase
-      .from("ad_requests")
+      .from("drama_ad_requests")
       .insert({
         user_id: userId,
         advertiser_name: advertiserName.trim(),
@@ -428,11 +426,11 @@ export default function PushAdsPage() {
         console.error("Unable to submit advertiser request:", error);
       }
       if (uploadedPaths.length) {
-        const { error: cleanupError } = await supabase.storage.from("ad-creatives").remove(uploadedPaths);
+        const { error: cleanupError } = await supabase.storage.from("drama-ad-creatives").remove(uploadedPaths);
         if (cleanupError) console.error("Unable to clean up advertiser creatives after request failure:", cleanupError);
       }
       setErrorMessage(isAdRequestSchemaError(error.code)
-        ? "Skema pengajuan iklan belum lengkap. Admin Youvie perlu menjalankan ulang supabase/ad-requests.sql di Supabase SQL Editor."
+        ? "Tabel pengajuan iklan drama belum tersedia. Admin Youvie perlu menjalankan supabase/drama-ads.sql di Supabase SQL Editor."
         : "Pengajuan belum berhasil dikirim. Periksa data dan coba lagi.");
       return;
     }
@@ -462,8 +460,8 @@ export default function PushAdsPage() {
 
       <section className="push-ads-hero">
         <p className="eyebrow"><Megaphone size={15} /> IKLAN DI Youvie</p>
-        <h1>Jangkau pembaca<br /><em>cerita Indonesia.</em></h1>
-        <p>Ajukan kebutuhan iklan untuk komunitas pembaca Youvie. Tim kami akan meninjau materi, lalu menghubungimu untuk membahas harga dan jadwal.</p>
+        <h1>Jangkau penonton<br /><em>drama pendek.</em></h1>
+        <p>Ajukan kebutuhan iklan untuk penonton drama pendek Youvie. Tim kami akan meninjau materi, lalu menghubungimu untuk membahas harga dan jadwal.</p>
         <div className="push-ads-process">
           <span><b>01</b> Kirim kebutuhan iklan</span>
           <span><b>02</b> Ditinjau tim Youvie</span>
@@ -506,7 +504,7 @@ export default function PushAdsPage() {
                   <label className="push-ads-field">
                     <span>URL tujuan iklan</span>
                     <input type="url" value={destinationUrl} onChange={(event) => setDestinationUrl(event.target.value)} maxLength={2000} placeholder="https://contoh.id" required />
-                    <small>Halaman yang dibuka pembaca saat memilih iklan.</small>
+                    <small>Halaman yang dibuka penonton saat memilih iklan.</small>
                   </label>
                 </section>
 
@@ -538,15 +536,15 @@ export default function PushAdsPage() {
                 <section className="push-ads-form-section" aria-labelledby="push-ads-creative-heading">
                   <div className="push-ads-form-section-heading"><span>03</span><div><h3 id="push-ads-creative-heading">Materi iklan</h3><p>Unggah gambar terpisah agar materi tampil pas di desktop, tablet, dan mobile.</p></div></div>
                   <ImageSizeGuide
-                    includesHomeBanner={placements.includes("home_banner")}
-                    includesOtherPlacements={placements.some((placement) => placement !== "home_banner")}
-                    includesEpisodeTransition={placements.includes("reader_episode_transition")}
+                    includesHomeBanner={placements.includes("drama_home_banner")}
+                    includesOtherPlacements={placements.some((placement) => placement !== "drama_home_banner")}
+                    includesEpisodeTransition={placements.includes("drama_episode_transition")}
                   />
                   <div className="push-ads-upload-grid">
                     {creativeDevices.map(({ value }) => {
-                      const includesHomeBanner = placements.includes("home_banner");
+                      const includesHomeBanner = placements.includes("drama_home_banner");
                       const size = value === "desktop"
-                        ? placements.includes("reader_episode_transition") && !includesHomeBanner ? "1200 × 1000 px" : includesHomeBanner ? "1200 × 400 px" : "1200 × 600 px"
+                        ? placements.includes("drama_episode_transition") && !includesHomeBanner ? "1200 × 1000 px" : includesHomeBanner ? "1200 × 400 px" : "1200 × 600 px"
                         : value === "tablet"
                           ? includesHomeBanner ? "768 × 360 px" : "900 × 600 px"
                           : includesHomeBanner ? "720 × 480 px" : "720 × 900 px";

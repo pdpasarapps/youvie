@@ -29,9 +29,7 @@ export default function PlatformRuntime({
   const adminOrLoginRoute = pathname === "/login" || pathname === "/admin" || pathname.startsWith("/admin/");
   const gatedFeature = pathname.startsWith("/comic/")
     ? !settings.feature_flags.reading
-    : pathname === "/account/favorites"
-      ? !settings.feature_flags.favorites
-      : false;
+    : false;
 
   let content = children;
   if (settings.maintenance_enabled && !adminOrLoginRoute) {

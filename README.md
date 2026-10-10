@@ -1,9 +1,16 @@
 ## Youvie
 
-Youvie is a short-drama platform built with Next.js and Supabase Auth/Postgres. Drama series are organized by season and episode. Video upload and playback remain disabled until a streaming provider is selected.
+Youvie is a short-drama platform built with Next.js, Supabase Auth/Postgres, and Supabase Storage. Add a drama title and upload portrait (9:16) MP4/WebM episodes of 1–2 minutes. Reusing a title automatically appends the next episode to that drama. Resumable TUS uploads handle larger files; drama covers and episode thumbnails are optional images.
 
 For existing Supabase projects, run `supabase/comic-contributors.sql` once before editing comic contributor details.
-Run `supabase/video-catalog.sql` once in the Supabase SQL Editor to create Youvie's drama-series, season, episode, and video-uploader permission tables. Existing account roles and creator data are not modified. Admins can grant upload access from `/admin/video-upload`; video file uploads stay disabled until a streaming provider is selected.
+Run `supabase/video-catalog.sql`, then `supabase/drama-video-storage.sql` in the Supabase SQL Editor to create the drama catalog, uploader permissions, and private `drama-media` bucket policies. Existing account roles and creator data are not modified. Admins can grant upload access from `/admin/video-upload`; admins and explicitly permitted uploaders can add portrait videos, covers, and thumbnails. Published media is served with signed Supabase Storage URLs; drafts stay private.
+
+Supabase Storage limits uploads by its project-wide and per-bucket file size settings. The Free plan allows up to 50 MB per file; larger videos require compression or a plan/settings that permits a higher limit. See [Supabase file size limits](https://supabase.com/docs/guides/storage/uploads/file-limits) and check Storage Settings plus the `drama-media` bucket limit when an upload returns HTTP 413.
+Run `supabase/drama-viewer-library.sql` after `supabase/video-catalog.sql` to enable account favorites and per-account episode watch progress. The account pages use separate drama tables; existing comic bookmarks and reading history remain unchanged.
+Run `supabase/drama-homepage-promos.sql` to create a separate promo table for the drama platform. The `/admin/homepage-promos` panel and public homepage use `drama_homepage_promos`; the legacy `homepage_promos` table and its existing data remain unchanged.
+Run `supabase/drama-share-previews.sql` after `supabase/video-catalog.sql` to enable `/admin/share-previews`. It stores generated drama share images separately from comic previews; this page uses published drama covers or episode thumbnails and saves the generated JPGs to R2.
+Run `supabase/drama-analytics.sql` after `supabase/video-catalog.sql` to enable `/admin/analytics` for drama video plays and the homepage's popular episodes list. The homepage ranks published episodes by plays over the last 30 days. Plays are recorded when published episodes start and counted at most once per visitor and episode every 30 minutes. The legacy comic analytics remain separate and unchanged; historical comic views are not imported.
+Run `supabase/drama-ads.sql` after `supabase/video-catalog.sql` to enable drama-only ad slots, sponsor campaigns, advertiser requests, and the `/push-ads` submission form. It uses separate tables and the `drama-ad-creatives` bucket; legacy comic ad tables and creative files remain unchanged. These admin tools manage campaign records, but campaigns are not yet rendered in the public drama feed.
 For comic publishing and admin curation, run `supabase/comic-curation.sql` once on existing Supabase projects.
 For the admin dashboard, run `supabase/creator-request.sql` first, then `supabase/admin-management.sql` to grant admin access to profile management.
 For comic-level bookmarks on an existing database, run `supabase/comic-bookmarks.sql` once.
@@ -11,11 +18,11 @@ For creator-selected comic device targeting on an existing database, run `supaba
 For static comic share previews on an existing database, run `supabase/comic-share-previews.sql` once before deploying. Admins can then generate previews for published comics from `/admin/share-previews`; new covers create their share preview in the browser and upload it directly to R2.
 For admin reading analytics on an existing database, run `supabase/comic-analytics.sql` once in the Supabase SQL Editor after `supabase/creator-request.sql`, then configure `SUPABASE_SERVICE_ROLE_KEY` as a server-only secret in the production Worker and `.env.local`. The analytics route needs it to record anonymous views; never expose it in client-side code. Counts start after this migration is installed. A browser opening the same episode is counted at most once per 30-minute interval; unique readers use a random first-party cookie, not an IP address or user-agent.
 For reader Free/Premium/VIP memberships on an existing database, run `supabase/reader-memberships.sql` once in the Supabase SQL Editor after `supabase/creator-request.sql`. Admins assign tiers from user management; Premium removes ads and VIP also unlocks direct access to every published episode.
-For reader-interest quiz and genre-based sponsor targeting on an existing database, run `supabase/reader-profiling.sql` once in the Supabase SQL Editor after `supabase/ads-management.sql`. The signup quiz is optional, ad-personalization consent is separate and off by default, and readers can change or clear their interests in account settings. Genre campaigns can match the comic currently being read without using a reader profile; profile-based matching requires explicit consent.
+For the legacy comic reader-interest quiz and genre-based sponsor targeting on an existing database, run `supabase/reader-profiling.sql` once in the Supabase SQL Editor after `supabase/ads-management.sql`. The signup quiz is optional, ad-personalization consent is separate and off by default, and readers can change or clear their interests in account settings. Genre campaigns can match the comic currently being read without using a reader profile; profile-based matching requires explicit consent.
 
 ## Getting Started
 
-Copy `.env.example` to `.env.local` and fill in the values from Supabase and Cloudflare R2. Keep `.env.local` private and never commit it. Rotate any server credentials that have been shared outside your trusted environment.
+Copy `.env.example` to `.env.local` and fill in the values from Supabase and Cloudflare R2 where the remaining legacy features require it. Keep `.env.local` private and never commit it. Rotate any server credentials that have been shared outside your trusted environment.
 
 Untuk panduan menyiapkan gambar komik dan iklan, lihat [Panduan Ukuran Gambar](docs/panduan-ukuran-gambar.md).
 
@@ -48,7 +55,7 @@ The local `.env.local` file does not configure the production Worker.
 
 For search indexing, keep `NEXT_PUBLIC_SITE_URL` set to the existing canonical public origin in local and production environments. The app exposes `robots.txt` and a sitemap containing published comics and episodes; submit the production sitemap to Google Search Console and Bing Webmaster Tools after deployment.
 
-The home page renders its published comic catalog on the server and includes visible Indonesian platform information. The global layout emits `Organization` and `WebSite` JSON-LD; published comic pages emit `CreativeWorkSeries` and `BreadcrumbList` data. Keep structured data accurate and consistent with visible page content. After deploying SEO changes, inspect the canonical home page and sitemap in Google Search Console; indexing and search snippets are determined by search engines and are not guaranteed.
+The home page renders published drama episodes on the server. Supabase Storage's configured file-size limit and project plan determine which video sizes can be uploaded. The global layout emits `Organization` and `WebSite` JSON-LD. Keep structured data accurate and consistent with visible page content. After deploying SEO changes, inspect the canonical home page and sitemap in Google Search Console; indexing and search snippets are determined by search engines and are not guaranteed.
 
 The Facebook App ID is configured in the global metadata and is emitted as the `fb:app_id` tag.
 

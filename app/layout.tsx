@@ -5,6 +5,7 @@ import PlatformRuntime from "./platform-runtime";
 import ReaderMembershipRuntime from "./membership-runtime";
 import PwaSupport from "./pwa-support";
 import AppSplash from "@/components/app-splash";
+import ReaderBottomNavigation from "@/components/reader-bottom-navigation";
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
@@ -112,6 +113,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ReaderMembershipRuntime>
           <PlatformRuntime initialSettings={settings}>{children}</PlatformRuntime>
         </ReaderMembershipRuntime>
+        <ReaderBottomNavigation />
         <AppSplash />
         <PwaSupport />
       </body>

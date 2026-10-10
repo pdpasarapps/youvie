@@ -1,464 +1,404 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Bookmark, Compass, Eye, Heart, Palette, Pause, Play, Search, Share2, UserRound, X } from "lucide-react";
-import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowDown, ArrowLeft, ArrowRight, Compass, Flame, Film, Heart, Play, Search, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Image from "next/image";
+import type { DramaCatalog, DramaEpisodeCard, DramaHomepagePromo } from "@/lib/homepage-data";
 import { createClient } from "@/lib/supabase/client";
-import { COMIC_GENRES, getComicGenreLabel } from "@/lib/comic-genres";
-import BrandLogo from "@/components/brand-logo";
-import PlatformLinks from "@/components/platform-links";
-import SponsoredAd from "@/components/sponsored-ad";
-import { usePlatformSettings } from "./platform-runtime";
-import { useCurrentDevice } from "@/components/use-current-device";
-import { isComicAvailableOnDevice } from "@/lib/comic-target-device";
-import type { ContinueReading, HomepageCatalog, HomepageComic } from "@/lib/homepage-data";
 
 const supabase = createClient();
 
-type HomepagePromo = {
-  id: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  image_url: string;
-  image_url_tablet: string | null;
-  image_url_mobile: string | null;
-  cta_label: string;
-  destination_url: string;
-};
-
-function comicGenre(genre: string) {
-  return getComicGenreLabel(genre);
+function DramaPromoCard({ promo }: { promo: DramaHomepagePromo }) {
+  return (
+    <article className="drama-promo">
+      <Link href={promo.destination_url} className="drama-promo-link">
+        <picture className="drama-promo-picture">
+          {promo.image_url_mobile && <source media="(max-width: 680px)" srcSet={promo.image_url_mobile} />}
+          {promo.image_url_tablet && <source media="(max-width: 1024px)" srcSet={promo.image_url_tablet} />}
+          <Image src={promo.image_url} alt="" fill unoptimized sizes="(max-width: 1024px) 100vw, 1180px" />
+        </picture>
+        <div className="drama-promo-copy">
+          {promo.eyebrow && <p>{promo.eyebrow}</p>}
+          <h2>{promo.title}</h2>
+          {promo.description && <span>{promo.description}</span>}
+          {promo.cta_label && <strong>{promo.cta_label}<span aria-hidden="true"> →</span></strong>}
+        </div>
+      </Link>
+    </article>
+  );
 }
 
-function formatEngagementCount(count: number) {
-  return new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 }).format(count);
-}
-
-function HomepagePromoCarousel({ promos }: { promos: HomepagePromo[] }) {
+function FeaturedDrama({ episodes }: { episodes: DramaEpisodeCard[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [paused, setPaused] = useState(false);
-  const currentIndex = promos.length ? activeIndex % promos.length : 0;
-  const promo = promos[currentIndex];
+  const currentIndex = episodes.length ? activeIndex % episodes.length : 0;
+  const activeEpisode = episodes[currentIndex];
+  const multipleEpisodes = episodes.length > 1;
 
   useEffect(() => {
-    if (promos.length < 2 || paused) return;
-    const timer = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % promos.length);
-    }, 6500);
-    return () => window.clearInterval(timer);
-  }, [paused, promos.length]);
+    if (!multipleEpisodes || paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const interval = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % episodes.length);
+    }, 6000);
+    return () => window.clearInterval(interval);
+  }, [episodes.length, multipleEpisodes, paused]);
 
-  if (!promo) {
-    return (
-      <section className="reader-welcome">
-        <p className="reader-kicker">CERITA INDONESIA, DI SINI</p>
-        <h2>Temukan kisah yang membuatmu betah membaca.</h2>
-        <p>Jelajahi komik independen dan temukan cerita favorit berikutnya.</p>
-        <Link className="reader-primary-button" href="#jelajah">Jelajahi komik <ArrowRight size={17} /></Link>
-      </section>
-    );
-  }
-
-  const promoLink = promo.destination_url.startsWith("/") && !promo.destination_url.startsWith("//")
-    ? <Link className="reader-primary-button" href={promo.destination_url}>{promo.cta_label || "Selengkapnya"} <ArrowRight size={17} /></Link>
-    : <a className="reader-primary-button" href={promo.destination_url} target="_blank" rel="noreferrer noopener">{promo.cta_label || "Selengkapnya"} <ArrowRight size={17} /></a>;
+  const showEpisode = (index: number) => {
+    setActiveIndex((index + episodes.length) % episodes.length);
+  };
 
   return (
-    <section className="reader-featured reader-promo-hero" aria-roledescription="carousel" aria-label="Promo pilihan">
-      <picture className="reader-promo-background">
-        {promo.image_url_mobile && <source media="(max-width: 640px)" srcSet={promo.image_url_mobile} />}
-        {promo.image_url_tablet && <source media="(min-width: 641px) and (max-width: 1023px)" srcSet={promo.image_url_tablet} />}
-        <Image src={promo.image_url} alt="" width={1920} height={720} unoptimized loading="eager" fetchPriority="high" />
-      </picture>
-      <div className="reader-promo-scrim" />
-      <div className="reader-featured-copy reader-promo-copy" key={promo.id}>
-        {promo.eyebrow && <span className="reader-kicker">{promo.eyebrow}</span>}
-        <h2>{promo.title}</h2>
-        {promo.description && <p className="reader-featured-synopsis">{promo.description}</p>}
-        {promoLink}
+    <section
+      className={`drama-featured${activeEpisode?.heroUrl || activeEpisode?.coverUrl || activeEpisode?.thumbnailUrl ? " has-artwork" : ""}`}
+      aria-roledescription="carousel"
+      aria-label="Drama unggulan"
+      aria-labelledby="drama-featured-title"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaused(false);
+      }}
+    >
+      {activeEpisode?.heroUrl || activeEpisode?.coverUrl || activeEpisode?.thumbnailUrl
+        ? <Image
+          className="drama-featured-artwork"
+          key={`${activeEpisode.id}-${activeEpisode.heroUrl ?? activeEpisode.coverUrl ?? activeEpisode.thumbnailUrl}`}
+          src={activeEpisode.heroUrl || activeEpisode.coverUrl || activeEpisode.thumbnailUrl || ""}
+          alt={`Sampul drama ${activeEpisode.seriesTitle}`}
+          fill
+          priority
+          unoptimized
+          sizes="100vw"
+        />
+        : <div className="drama-featured-artwork drama-featured-artwork-placeholder" aria-hidden="true" />}
+      <div className="drama-featured-shade" />
+      <div className="drama-featured-content">
+        <p className="drama-eyebrow"><Sparkles size={14} /> DRAMA PENDEK PILIHAN</p>
+        <h1 id="drama-featured-title" aria-live="polite">{activeEpisode?.seriesTitle ?? "Drama unggulan segera hadir."}</h1>
+        {activeEpisode ? (
+          <>
+            <p className="drama-featured-episode">Season {activeEpisode.seasonNumber} · Episode {activeEpisode.episodeNumber} · {activeEpisode.genre || "Drama pendek"}</p>
+            <p className="drama-featured-description">{activeEpisode.synopsis || `Ikuti ${activeEpisode.seriesTitle}, tayang eksklusif di YouVie.`}</p>
+            <Link className="drama-primary-action" href={`/watch/${activeEpisode.id}`}><Play size={16} fill="currentColor" /> Lihat detail</Link>
+          </>
+        ) : (
+          <>
+            <p className="drama-featured-description">Drama pilihan akan muncul di sini. Tandai serial sebagai unggulan dari Manajemen Drama.</p>
+            <a className="drama-primary-action" href="#drama-catalog"><Film size={16} /> Jelajahi drama</a>
+          </>
+        )}
       </div>
-      {promos.length > 1 && <>
-        <div className="reader-promo-controls" aria-label="Navigasi promo">
-          <button type="button" aria-label={paused ? "Putar otomatis promo" : "Jeda otomatis promo"} aria-pressed={paused} onClick={() => setPaused((current) => !current)}>{paused ? <Play size={16} /> : <Pause size={16} />}</button>
-          <button type="button" aria-label="Promo sebelumnya" onClick={() => setActiveIndex((currentIndex - 1 + promos.length) % promos.length)}><ArrowLeft size={18} /></button>
-          <div className="reader-promo-dots">
-            {promos.map((item, index) => <button key={item.id} type="button" aria-label={`Tampilkan promo ${index + 1}: ${item.title}`} aria-current={index === currentIndex} onClick={() => setActiveIndex(index)} />)}
+      {multipleEpisodes && (
+        <div className="drama-featured-carousel-controls" role="group" aria-label="Kontrol drama unggulan">
+          <button type="button" aria-label="Drama unggulan sebelumnya" onClick={() => showEpisode(activeIndex - 1)}><ArrowLeft size={17} /></button>
+          <div className="drama-featured-dots" role="group" aria-label="Pilih drama unggulan">
+            {episodes.map((episode, index) => (
+              <button
+                key={episode.id}
+                type="button"
+                className={index === currentIndex ? "is-active" : ""}
+                aria-label={`Tampilkan ${episode.seriesTitle}`}
+                aria-current={index === currentIndex ? "true" : undefined}
+                onClick={() => showEpisode(index)}
+              />
+            ))}
           </div>
-          <button type="button" aria-label="Promo berikutnya" onClick={() => setActiveIndex((currentIndex + 1) % promos.length)}><ArrowRight size={18} /></button>
+          <button type="button" aria-label="Drama unggulan berikutnya" onClick={() => showEpisode(activeIndex + 1)}><ArrowRight size={17} /></button>
         </div>
-        <span className="reader-promo-count" aria-live="polite">{currentIndex + 1} / {promos.length}</span>
-      </>}
+      )}
+      <a className="drama-featured-scroll" href="#drama-catalog"><span>Lihat semua drama</span><ArrowDown size={15} /></a>
+      <span className="drama-featured-mark" aria-hidden="true">Y.</span>
     </section>
   );
 }
 
-function ComicCard({ comic, compact = false, overlayDetails = false, landscapeCard = false }: { comic: HomepageComic; compact?: boolean; overlayDetails?: boolean; landscapeCard?: boolean }) {
-  const chapter = comic.latestChapter;
-  const comicInfo = (
-    <div className="reader-comic-info">
-      {!overlayDetails && <><span className="reader-card-genre">{comicGenre(comic.genre)}</span><h3>{comic.title}</h3></>}
-      <div className={overlayDetails ? "reader-card-author" : undefined}>
-        <p>{comic.contributor || comic.creator}</p>
-      </div>
-      {comic.engagement && (
-        <div className="reader-card-engagement" aria-label={`Statistik ${comic.title}`}>
-          <span aria-label={`${comic.engagement.views.toLocaleString("id-ID")} dilihat`} title="Dilihat"><Eye size={13} /><b>{formatEngagementCount(comic.engagement.views)}</b></span>
-          <span aria-label={`${comic.engagement.likes.toLocaleString("id-ID")} favorit`} title="Favorit"><Heart size={13} /><b>{formatEngagementCount(comic.engagement.likes)}</b></span>
-          <span aria-label={`${comic.engagement.shares.toLocaleString("id-ID")} dibagikan`} title="Dibagikan"><Share2 size={13} /><b>{formatEngagementCount(comic.engagement.shares)}</b></span>
-        </div>
-      )}
-      {chapter && <span className="reader-card-latest">Terbaru · Episode {chapter.chapter_number}</span>}
-    </div>
-  );
+function DramaCard({
+  episode,
+  viewerId,
+  favoriteAvailable,
+  isFavorite,
+  favoriteBusy,
+  onToggleFavorite,
+}: {
+  episode: DramaEpisodeCard;
+  viewerId: string | null;
+  favoriteAvailable: boolean;
+  isFavorite: boolean;
+  favoriteBusy: boolean;
+  onToggleFavorite: () => void;
+}) {
   return (
-    <article className={`reader-comic-card${compact ? " reader-comic-card-compact" : ""}${landscapeCard ? " reader-comic-card-landscape" : ""}`}>
-      <Link href={`/comic/${comic.slug}`} className="reader-card-link" aria-label={`Buka ${comic.title}`}>
-        <div className="reader-comic-cover">
-          {comic.coverUrl
-            ? <img src={comic.coverUrl} alt={`Sampul ${comic.title}`} loading="lazy" />
-            : <span aria-hidden="true">{comic.title.slice(0, 2).toUpperCase()}</span>}
-          {overlayDetails && <div className="reader-latest-cover-copy"><span>{comicGenre(comic.genre)}</span><h3>{comic.title}</h3></div>}
-          {chapter && <span className="reader-cover-episode">Ep. {chapter.chapter_number}</span>}
-        </div>
-        {!overlayDetails && comicInfo}
+    <article className="drama-card" id={`episode-${episode.id}`}>
+      <Link
+        className="drama-video-frame"
+        href={`/watch/${episode.id}`}
+        aria-label={`Tonton drama ${episode.seriesTitle}`}
+      >
+        {(episode.cardUrl || episode.coverUrl || episode.thumbnailUrl) && <Image
+          className="drama-card-artwork"
+          src={episode.cardUrl || episode.coverUrl || episode.thumbnailUrl || ""}
+          alt=""
+          fill
+          unoptimized
+          sizes="(max-width: 680px) 46vw, (max-width: 1000px) 30vw, 24vw"
+        />}
+        <span className="drama-card-play" aria-hidden="true"><Play size={24} fill="currentColor" /></span>
       </Link>
-      {overlayDetails && comicInfo}
-      {chapter && <Link className="reader-card-read" href={`/comic/${comic.slug}/chapter/${chapter.id}`}><BookOpen size={14} /> Baca <ArrowRight size={14} /></Link>}
+      <div className="drama-card-copy">
+        <div className="drama-card-title-row">
+          <h3>{episode.seriesTitle}</h3>
+          {viewerId
+            ? <button
+              type="button"
+              className={`drama-favorite-action${isFavorite ? " is-favorite" : ""}`}
+              aria-label={`${isFavorite ? "Hapus" : "Simpan"} ${episode.seriesTitle} ${isFavorite ? "dari" : "ke"} favorit`}
+              aria-pressed={isFavorite}
+              title={!favoriteAvailable ? "Jalankan supabase/drama-viewer-library.sql" : undefined}
+              disabled={!favoriteAvailable || favoriteBusy}
+              onClick={onToggleFavorite}
+            >
+              <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
+            </button>
+            : <Link className="drama-favorite-action" href="/login" aria-label={`Masuk untuk menyimpan ${episode.seriesTitle} ke favorit`} title="Masuk untuk menyimpan ke favorit">
+              <Heart size={16} />
+            </Link>}
+        </div>
+      </div>
     </article>
   );
 }
 
 export default function HomePageClient({
-  comics: initialComics,
-  catalogState: initialCatalogState,
-  episodeLoadError: initialEpisodeLoadError,
-}: HomepageCatalog) {
-  const { settings } = usePlatformSettings();
-  const currentDevice = useCurrentDevice();
-  const router = useRouter();
-  const comics = initialComics;
-  const catalogState = initialCatalogState;
-  const episodeLoadError = initialEpisodeLoadError;
-  const [query, setQuery] = useState("");
-  const [genre, setGenre] = useState("all");
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
-  const [continueReading, setContinueReading] = useState<ContinueReading | null>(null);
-  const [authMessage, setAuthMessage] = useState("");
-  const [authRetry, setAuthRetry] = useState(0);
-  const [homepagePromos, setHomepagePromos] = useState<HomepagePromo[]>([]);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const publicUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadPromos = async () => {
-      const { data, error } = await supabase
-        .from("homepage_promos")
-        .select("id, eyebrow, title, description, image_url, image_url_tablet, image_url_mobile, cta_label, destination_url")
-        .order("sort_order")
-        .order("created_at", { ascending: false });
-      if (error) {
-        console.error("Unable to load homepage promos. Run supabase/homepage-promos.sql if the table is missing:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        });
-        return;
-      }
-      if (!cancelled) setHomepagePromos((data ?? []) as HomepagePromo[]);
-    };
-    void loadPromos();
-    return () => { cancelled = true; };
-  }, []);
-
+  episodes,
+  genres,
+  promos,
+  popularEpisodeIds,
+  catalogState,
+}: DramaCatalog) {
+  const [search, setSearch] = useState("");
+  const [selectedGenre, setSelectedGenre] = useState("Semua");
+  const [episodeSort, setEpisodeSort] = useState<"latest" | "popular">("latest");
+  const [viewerId, setViewerId] = useState<string | null>(null);
+  const [favoriteSeriesIds, setFavoriteSeriesIds] = useState<string[]>([]);
+  const [favoriteAvailable, setFavoriteAvailable] = useState(false);
+  const [favoriteBusySeriesId, setFavoriteBusySeriesId] = useState<string | null>(null);
+  const [favoriteError, setFavoriteError] = useState("");
   useEffect(() => {
     let active = true;
-    const loadHome = async () => {
+    const loadFavorites = async () => {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
-        console.error("Unable to check the current auth session:", sessionError);
-        if (active) setAuthMessage("Status masuk belum dapat diperiksa. Periksa koneksi lalu coba lagi.");
+        console.error("Unable to check viewer session before loading drama favorites:", sessionError);
+        return;
       }
-      const session = sessionData.session;
-      if (active) setSignedIn(Boolean(session?.user));
+      const viewer = sessionData.session?.user;
+      if (!viewer || !active) return;
+      setViewerId(viewer.id);
 
-      if (session?.user) {
-        const { data: history, error: historyError } = await supabase
-          .from("reading_history")
-          .select("last_page, chapter_id")
-          .eq("user_id", session.user.id)
-          .order("updated_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (historyError) {
-          console.error("Unable to load reading history:", {
-            message: historyError.message,
-            code: historyError.code,
-            details: historyError.details,
-            hint: historyError.hint,
-          });
-        } else if (history) {
-          const { data: chapter, error: chapterError } = await supabase
-            .from("chapters")
-            .select("id, title, chapter_number, comic_id")
-            .eq("id", history.chapter_id)
-            .maybeSingle();
-          if (chapterError) {
-            console.error("Unable to load the chapter from reading history:", {
-              message: chapterError.message,
-              code: chapterError.code,
-              details: chapterError.details,
-              hint: chapterError.hint,
-            });
-          } else if (chapter) {
-            let { data: historyComic, error: comicError } = await supabase
-              .from("comics")
-              .select("id, title, slug, synopsis, contributor, genre, cover_key, target_device, profiles!comics_creator_id_fkey(display_name)")
-              .eq("id", chapter.comic_id)
-              .maybeSingle();
-            if (comicError?.code === "42703") {
-              const legacyHistoryComic = await supabase
-                .from("comics")
-                .select("id, title, slug, synopsis, contributor, genre, cover_key, profiles!comics_creator_id_fkey(display_name)")
-                .eq("id", chapter.comic_id)
-                .maybeSingle();
-              historyComic = legacyHistoryComic.data as typeof historyComic;
-              comicError = legacyHistoryComic.error;
-            }
-            if (comicError) {
-              console.error("Unable to load the comic from reading history:", {
-                message: comicError.message,
-                code: comicError.code,
-                details: comicError.details,
-                hint: comicError.hint,
-              });
-            } else if (historyComic) {
-                const { count: pageCount, error: countError } = await supabase
-                  .from("pages")
-                  .select("id", { count: "exact", head: true })
-                  .eq("chapter_id", history.chapter_id);
-                if (countError) {
-                  console.error("Unable to load reading progress total:", {
-                    message: countError.message,
-                    code: countError.code,
-                    details: countError.details,
-                    hint: countError.hint,
-                  });
-                }
-                const profile = Array.isArray(historyComic.profiles) ? historyComic.profiles[0] : historyComic.profiles;
-                const historyRecord: ContinueReading = {
-                  comic: {
-                    id: historyComic.id,
-                    title: historyComic.title,
-                    slug: historyComic.slug,
-                    synopsis: historyComic.synopsis || "",
-                    contributor: historyComic.contributor?.trim() || "",
-                    genre: historyComic.genre,
-                    target_device: historyComic.target_device || "all",
-                    creator: profile?.display_name || "Kreator independen",
-                    creatorHandle: null,
-                    creatorProfilePublic: false,
-                    coverUrl: historyComic.cover_key && publicUrl ? `${publicUrl.replace(/\/$/, "")}/${historyComic.cover_key}` : null,
-                    latestChapter: null,
-                    chapterCount: 0,
-                    engagement: null,
-                  },
-                  chapterId: history.chapter_id,
-                  chapterTitle: chapter.title,
-                  chapterNumber: chapter.chapter_number,
-                  lastPage: history.last_page,
-                  pageCount: pageCount || 0,
-                };
-                if (active) setContinueReading(historyRecord);
-            }
-          }
-        }
-      } else if (active) {
-        setContinueReading(null);
+      const { data, error } = await supabase
+        .from("drama_favorites")
+        .select("series_id")
+        .eq("user_id", viewer.id);
+      if (error) {
+        console.error("Unable to load drama favorites:", error);
+        if (active) setFavoriteError("Favorit drama belum aktif. Jalankan supabase/drama-viewer-library.sql.");
+        return;
       }
-
+      if (active) {
+        setFavoriteSeriesIds((data ?? []).map((row) => row.series_id));
+        setFavoriteAvailable(true);
+      }
     };
-
-    void loadHome();
-    return () => { active = false; };
-  }, [authRetry, publicUrl]);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSignedIn(Boolean(session?.user));
-      if (!session?.user) setContinueReading(null);
-      setAuthMessage("");
-    });
-    return () => subscription.unsubscribe();
+    void loadFavorites();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  const visibleComics = useMemo(
-    () => comics.filter((comic) => isComicAvailableOnDevice(comic.target_device, currentDevice)),
-    [comics, currentDevice],
-  );
-  const genres = useMemo(() => ["all", ...new Set([
-    ...COMIC_GENRES,
-    ...visibleComics.map((comic) => comic.genre).filter(Boolean),
-  ])], [visibleComics]);
-  const searchedComics = useMemo(() => {
-    const normalizedQuery = settings.feature_flags.search ? query.trim().toLocaleLowerCase("id-ID") : "";
-    return visibleComics.filter((comic) => {
-      const matchesGenre = genre === "all" || comic.genre === genre;
-      const searchable = `${comic.title} ${comic.creator} ${comic.contributor} ${comic.genre}`.toLocaleLowerCase("id-ID");
-      return matchesGenre && (!normalizedQuery || searchable.includes(normalizedQuery));
-    });
-  }, [visibleComics, genre, query, settings.feature_flags.search]);
-  const latestComics = [...visibleComics].filter((comic) => comic.latestChapter).sort((a, b) =>
-    new Date(b.latestChapter?.published_at || 0).getTime() - new Date(a.latestChapter?.published_at || 0).getTime(),
-  );
-  const ongoingComics = [...visibleComics].sort((a, b) => b.chapterCount - a.chapterCount).filter((comic) => comic.chapterCount > 1);
-
-  const focusSearch = () => {
-    setMobileSearchOpen(true);
-    window.setTimeout(() => searchInputRef.current?.focus(), 0);
+  const toggleFavorite = async (seriesId: string) => {
+    if (!viewerId || !favoriteAvailable || favoriteBusySeriesId) return;
+    const isFavorite = favoriteSeriesIds.includes(seriesId);
+    setFavoriteBusySeriesId(seriesId);
+    setFavoriteError("");
+    const query = isFavorite
+      ? supabase.from("drama_favorites").delete().eq("user_id", viewerId).eq("series_id", seriesId)
+      : supabase.from("drama_favorites").insert({ user_id: viewerId, series_id: seriesId });
+    const { error } = await query;
+    if (error) {
+      console.error("Unable to update drama favorite:", { error, seriesId });
+      setFavoriteError("Perubahan favorit gagal disimpan. Coba lagi.");
+    } else {
+      setFavoriteSeriesIds((current) => isFavorite
+        ? current.filter((id) => id !== seriesId)
+        : [...current, seriesId]);
+    }
+    setFavoriteBusySeriesId(null);
   };
+  const popularEpisodes = useMemo(() => {
+    const rankById = new Map((popularEpisodeIds ?? []).map((id, index) => [id, index]));
+    return episodes
+      .filter((episode) => rankById.has(episode.id))
+      .sort((left, right) => (rankById.get(left.id) ?? 0) - (rankById.get(right.id) ?? 0));
+  }, [episodes, popularEpisodeIds]);
+  const episodesForSort = episodeSort === "popular" ? popularEpisodes : episodes;
+  const filteredEpisodes = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase("id");
+    const seenSeriesIds = new Set<string>();
+    return episodesForSort.filter((episode) => {
+      if (seenSeriesIds.has(episode.seriesId)) return false;
+      seenSeriesIds.add(episode.seriesId);
+      const matchesGenre = selectedGenre === "Semua" || episode.genre === selectedGenre;
+      const matchesSearch = !query
+        || `${episode.seriesTitle} ${episode.synopsis} ${episode.genre}`.toLocaleLowerCase("id").includes(query);
+      return matchesGenre && matchesSearch;
+    });
+  }, [episodesForSort, search, selectedGenre]);
+  const featuredSeriesIds = new Set<string>();
+  const featuredEpisodes = episodes.filter((episode) => {
+    if (!episode.isFeatured || featuredSeriesIds.has(episode.seriesId)) return false;
+    featuredSeriesIds.add(episode.seriesId);
+    return true;
+  });
 
   return (
-    <main className="reader-home">
-    <h1 className="reader-sr-only">Baca komik Indonesia dari kreator lokal</h1>
-    <header className="reader-header">
-      <BrandLogo className="wordmark reader-wordmark" showName />
-      <nav className="reader-nav-links" aria-label="Navigasi utama">
-        <a className="reader-primary-nav-link" href="#jelajah">Jelajah</a>
-        <a className="reader-primary-nav-link" href="#genre">Genre</a>
-        {signedIn && settings.feature_flags.creators && <a href="#creator">Kreator</a>}
-        {signedIn && <Link href="/account">Koleksi saya</Link>}
-        {!signedIn && <Link href="/login">Masuk</Link>}
+    <main className="drama-home" id="top">
+      <header className="drama-topbar">
+        <Link href="/" className="drama-brand drama-wordmark" aria-label="Youvie beranda">You<span>Vie.</span></Link>
+        <nav className="drama-main-nav" aria-label="Navigasi utama">
+          <a className="drama-catalog-icon" href="#drama-catalog" aria-label="Jelajahi drama" title="Jelajahi drama"><Compass size={20} /></a>
+          {promos.length > 0 && <a href="#drama-promos">Pilihan Youvie</a>}
         </nav>
-        {settings.feature_flags.search && <form className={`reader-header-search${mobileSearchOpen ? " reader-header-search-open" : ""}`} onSubmit={(event) => { event.preventDefault(); document.querySelector("#jelajah")?.scrollIntoView({ behavior: "smooth" }); }}>
-          <Search size={17} aria-hidden="true" />
-          <input ref={searchInputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari komik, kreator, genre..." aria-label="Cari komik, kreator, atau genre" />
-          {mobileSearchOpen && <button type="button" className="reader-search-close" onClick={() => setMobileSearchOpen(false)} aria-label="Tutup pencarian"><X size={17} /></button>}
-        </form>}
-        <div className="reader-header-actions">
-          {settings.feature_flags.search && <button className="reader-search-mobile" aria-label="Cari komik" onClick={focusSearch}><Search size={20} /></button>}
-          {signedIn
-            ? <Link className="reader-login-button" href="/account"><UserRound size={17} /><span>Profil</span></Link>
-            : <Link className="reader-login-button" href="/login"><UserRound size={17} /><span>Masuk</span></Link>}
-        </div>
       </header>
-      <nav className="reader-bottom-nav" aria-label="Navigasi bawah">
-        <a href="#jelajah"><Compass size={19} /><span>Jelajah</span></a>
-        <Link href="/account" aria-label="Koleksi saya"><Bookmark size={19} /><span>Koleksi saya</span></Link>
-        {settings.feature_flags.creators && <a href="#creator"><Palette size={19} /><span>Kreator</span></a>}
-        {signedIn
-          ? <Link href="/account" aria-label="Profil"><UserRound size={19} /><span>Profil</span></Link>
-          : <Link href="/login" aria-label="Masuk"><UserRound size={19} /><span>Masuk</span></Link>}
-      </nav>
 
-      {authMessage && <div className="reader-inline-message" role="alert">{authMessage}<button onClick={() => setAuthRetry((attempt) => attempt + 1)}>Coba lagi</button></div>}
+      <FeaturedDrama episodes={featuredEpisodes} />
 
-      <HomepagePromoCarousel promos={homepagePromos} />
-
-      <section className="reader-home-section" id="terbaru">
-        <div className="reader-home-content">
-          <div className="reader-section-heading"><div><p className="reader-section-kicker">UPDATE TERKINI</p><h2>Episode terbaru</h2></div><a href="#jelajah">Jelajahi semua <ArrowUpRight size={16} /></a></div>
-          {catalogState === "error" && <div className="reader-empty-state"><p>Komik belum dapat dimuat. Periksa koneksi lalu coba lagi.</p><button onClick={() => router.refresh()}>Coba lagi</button></div>}
-          {catalogState === "empty" && <div className="reader-empty-state"><p>Belum ada cerita terbit. Kunjungi lagi nanti untuk menemukan komik baru.</p></div>}
-          {catalogState === "ready" && episodeLoadError && <div className="reader-empty-state"><p>Episode terbaru belum dapat dimuat. Komik tetap bisa dijelajahi di bawah.</p><button onClick={() => router.refresh()}>Coba lagi</button></div>}
-          {catalogState === "ready" && !episodeLoadError && latestComics.length > 0 && <div className="reader-comic-grid reader-latest-comic-grid">{latestComics.slice(0, 8).map((comic) => <ComicCard key={comic.id} comic={comic} compact overlayDetails />)}</div>}
-          {catalogState === "ready" && !episodeLoadError && latestComics.length === 0 && <div className="reader-empty-state"><p>Belum ada episode terbit. Jelajahi komik dan nantikan update berikutnya.</p><a href="#jelajah">Lihat semua komik <ArrowRight size={16} /></a></div>}
-        </div>
-      </section>
-
-      <div className="reader-home-content">
-        {signedIn && continueReading && isComicAvailableOnDevice(continueReading.comic.target_device, currentDevice) && (
-          <section className="reader-home-section reader-continue-section">
-            <div className="reader-section-heading"><div><p className="reader-section-kicker">KEMBALI KE CERITAMU</p><h2>Lanjutkan membaca</h2></div></div>
-            <Link className="reader-continue-card" href={`/comic/${continueReading.comic.slug}/chapter/${continueReading.chapterId}`}>
-              <div className="reader-continue-cover">{continueReading.comic.coverUrl && <img src={continueReading.comic.coverUrl} alt="" loading="lazy" />}</div>
-              <div className="reader-continue-info"><span>{comicGenre(continueReading.comic.genre)}</span><h3>{continueReading.comic.title}</h3><p>Episode {continueReading.chapterNumber} · {continueReading.chapterTitle}</p><span className="reader-continue-progress">Terakhir dibaca di halaman {continueReading.lastPage}{continueReading.pageCount ? ` dari ${continueReading.pageCount}` : ""}</span>{continueReading.pageCount > 0 && <span className="reader-continue-progressbar" role="progressbar" aria-label="Progres membaca" aria-valuemin={0} aria-valuemax={continueReading.pageCount} aria-valuenow={Math.min(continueReading.pageCount, continueReading.lastPage)}><i style={{ width: `${Math.min(100, (continueReading.lastPage / continueReading.pageCount) * 100)}%` }} /></span>}</div>
-              <span className="reader-continue-action">Lanjutkan <ArrowRight size={17} /></span>
-            </Link>
-          </section>
-        )}
-
-        <SponsoredAd slotKey="home_banner" placement="home" />
-
-        {ongoingComics.length > 0 && (
-          <section className="reader-home-section">
-            <div className="reader-section-heading"><div><p className="reader-section-kicker">SERIAL YANG TERUS BERLANJUT</p><h2>Ikuti ceritanya</h2></div><a href="#jelajah">Semua komik <ArrowUpRight size={16} /></a></div>
-            <div className={`reader-comic-rail${ongoingComics.length === 1 ? " reader-ongoing-single" : ""}`}>{ongoingComics.slice(0, 6).map((comic) => <ComicCard key={comic.id} comic={comic} landscapeCard={ongoingComics.length === 1} />)}</div>
-          </section>
-        )}
-
-        {latestComics.length > 1 && (
-          <section className="reader-editorial-callout">
-            <div><p className="reader-section-kicker">CERITA MENUNGGU UNTUK DITEMUKAN</p><h2>Setiap komik punya dunia yang berbeda.</h2><p>Mulai dari fantasi hingga drama, pilih cerita yang paling dekat denganmu.</p></div>
-            <a className="reader-primary-button" href="#genre">Pilih genre <ArrowRight size={17} /></a>
-          </section>
-        )}
-
-        <section className="reader-home-section" id="jelajah">
-          <div className="reader-section-heading"><div><p className="reader-section-kicker">JELAJAHI DUNIA CERITA</p><h2>Semua komik</h2></div><span className="reader-result-count">{searchedComics.length} cerita</span></div>
-          <div className="reader-discovery-tools" id="genre">
-            <div className="reader-genre-chips" aria-label="Saring berdasarkan genre">
-              {genres.map((item) => (
-                <button key={item} className={genre === item ? "reader-genre-chip reader-genre-chip-active" : "reader-genre-chip"} onClick={() => setGenre(item)}>
-                  {item === "all" ? "Semua" : comicGenre(item)}
-                </button>
-              ))}
-            </div>
-            {settings.feature_flags.search && <div className="reader-mobile-search-inline"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari komik, kreator, atau genre..." aria-label="Cari komik, kreator, atau genre" /></div>}
-          </div>
-          {catalogState === "ready" && searchedComics.length > 0 && <div className="reader-comic-grid">{searchedComics.map((comic, index) => (
-            <Fragment key={comic.id}>
-              <ComicCard comic={comic} />
-              {index === 7 && searchedComics.length > 8 && <SponsoredAd slotKey="catalog_grid_native" placement="catalog" />}
-            </Fragment>
-          ))}</div>}
-          {catalogState === "ready" && searchedComics.length === 0 && <div className="reader-empty-state"><p>{query ? "Komik yang kamu cari belum ditemukan." : genre !== "all" ? "Belum ada komik dalam kategori ini." : visibleComics.length === 0 ? "Belum ada komik yang tersedia di perangkat ini." : "Belum ada komik terbit."}</p><button onClick={() => { setGenre("all"); setQuery(""); }}>Jelajahi semua komik</button></div>}
+      {promos.length > 0 && (
+        <section className="drama-promos" id="drama-promos" aria-label="Pilihan drama dan promo">
+          {promos.map((promo) => <DramaPromoCard key={promo.id} promo={promo} />)}
         </section>
-      </div>
+      )}
 
-      <section className="reader-seo-about" id="about" aria-labelledby="reader-seo-about-title">
-        <header className="reader-seo-about-header">
-          <p className="reader-section-kicker">TENTANG YOUVIE</p>
-          <h2 id="reader-seo-about-title">Drama pendek dalam format serial</h2>
-          <p>Youvie adalah platform drama pendek dengan cerita yang disajikan dalam episode. Jelajahi serial berdasarkan genre dan ikuti urutan tayangnya.</p>
-        </header>
-        <div className="reader-seo-about-grid">
-          <article>
-            <div className="reader-seo-about-image"><Image src="/genre.png" alt="" fill sizes="(max-width: 760px) 100vw, (max-width: 1100px) 50vw, 33vw" /></div>
-            <h3>Jelajahi beragam genre</h3>
-            <p>Temukan kisah drama, komedi, aksi, romansa, misteri, dan genre lainnya dalam satu katalog.</p>
-            <a href="#genre">Jelajahi genre</a>
-          </article>
-          <article>
-            <div className="reader-seo-about-image"><Image src="/reading.png" alt="" fill sizes="(max-width: 760px) 100vw, (max-width: 1100px) 50vw, 33vw" /></div>
-            <h3>Tonton episode berurutan</h3>
-            <p>Setiap serial memiliki daftar season dan episode agar kamu mudah melanjutkan cerita dari bagian terakhir.</p>
-            <a href="#jelajah">Lihat katalog drama</a>
-          </article>
-          <article>
-            <div className="reader-seo-about-image"><Image src="/reading.png" alt="" fill sizes="(max-width: 760px) 100vw, (max-width: 1100px) 50vw, 33vw" /></div>
-            <h3>Konten dikelola tim Youvie</h3>
-            <p>Serial dan episode diterbitkan melalui halaman pengelolaan video yang hanya dapat diakses admin dan akun yang diberi izin.</p>
-            <Link href="/syarat-ketentuan">Ketentuan layanan Youvie</Link>
-          </article>
+      <section className="drama-browse-section" aria-labelledby="drama-browse-title">
+        <div className="drama-browse-heading">
+          <div>
+            <p className="drama-eyebrow"><Sparkles size={14} /> JELAJAHI CERITA</p>
+            <h2 id="drama-browse-title">Pilih genre <em>favoritmu.</em></h2>
+            <p>Temukan serial berdasarkan suasana cerita yang kamu suka.</p>
+          </div>
+        </div>
+        {favoriteError && viewerId && <p className="drama-favorite-library-error" role="alert">{favoriteError}</p>}
+        <div className="drama-category-list" aria-label="Kategori genre drama">
+          <button
+            type="button"
+            className={selectedGenre === "Semua" ? "is-selected" : ""}
+            aria-pressed={selectedGenre === "Semua"}
+            onClick={() => {
+              setSelectedGenre("Semua");
+              setEpisodeSort("latest");
+              document.getElementById("drama-catalog")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            Semua cerita <ArrowRight size={14} />
+          </button>
+          {genres.map((genre) => (
+            <button
+              key={genre}
+              type="button"
+              className={selectedGenre === genre ? "is-selected" : ""}
+              aria-pressed={selectedGenre === genre}
+              onClick={() => {
+                setSelectedGenre(genre);
+                setEpisodeSort("latest");
+                document.getElementById("drama-catalog")?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              {genre} <ArrowRight size={14} />
+            </button>
+          ))}
         </div>
       </section>
 
-      <footer className="reader-footer">
-        <div className="reader-footer-main-row">
-          <BrandLogo className="wordmark reader-wordmark" />
-          <PlatformLinks />
-          <div className="reader-footer-utility-links">
-            <nav className="reader-footer-links" aria-label="Tautan footer"><a href="#jelajah">Jelajah</a><a href="#genre">Genre</a><a href="#about">Tentang Youvie</a><Link href="/push-ads">Pasang iklan</Link><Link href="/syarat-ketentuan">Syarat layanan</Link></nav>
+      <section className="drama-catalog-section" id="drama-catalog" aria-labelledby="drama-catalog-title">
+        <div className="drama-catalog-heading">
+          <div>
+            <p className="drama-eyebrow"><Film size={14} /> PILIHAN CERITA UNTUKMU</p>
+            <h2 id="drama-catalog-title">Temukan drama <em>favoritmu.</em></h2>
+            <p>Episode pendek, cerita yang bikin lanjut terus.</p>
           </div>
+          <label className="drama-search">
+            <Search size={17} />
+            <span className="sr-only">Cari drama</span>
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari judul atau genre" />
+          </label>
         </div>
-        <p>Tempat cerita Indonesia menemukan pembacanya.</p>
-        <span>© 2026 Youvie</span>
+
+        <div className="drama-feed-switch" aria-label="Urutkan drama">
+          <button
+            type="button"
+            className={episodeSort === "latest" ? "is-selected" : ""}
+            aria-pressed={episodeSort === "latest"}
+            onClick={() => setEpisodeSort("latest")}
+          >
+            <Film size={15} /> Terbaru
+          </button>
+          <button
+            type="button"
+            className={episodeSort === "popular" ? "is-selected" : ""}
+            aria-pressed={episodeSort === "popular"}
+            onClick={() => setEpisodeSort("popular")}
+          >
+            <Flame size={15} /> Populer 30 hari
+          </button>
+        </div>
+
+        {catalogState === "error" ? (
+          <section className="drama-empty" role="alert">
+            <ShieldCheck size={25} />
+            <h3>Katalog belum tersedia</h3>
+            <p>Periksa konfigurasi Supabase dan jalankan SQL katalog serta storage drama.</p>
+          </section>
+        ) : filteredEpisodes.length ? (
+          <>
+            <div className="drama-results-line">
+              <span>{search || selectedGenre !== "Semua"
+                ? `${filteredEpisodes.length} drama ditemukan`
+                : episodeSort === "popular" ? "Drama paling banyak ditonton" : "Drama terbaru"}</span>
+              <span>{filteredEpisodes.length} serial</span>
+            </div>
+            <div className="drama-feed">
+              {filteredEpisodes.map((episode) => <DramaCard
+                key={episode.id}
+                episode={episode}
+                viewerId={viewerId}
+                favoriteAvailable={favoriteAvailable}
+                isFavorite={favoriteSeriesIds.includes(episode.seriesId)}
+                favoriteBusy={favoriteBusySeriesId === episode.seriesId}
+                onToggleFavorite={() => void toggleFavorite(episode.seriesId)}
+              />)}
+            </div>
+          </>
+        ) : (
+          <section className="drama-empty" role="status">
+            {episodeSort === "popular" ? <Flame size={25} /> : <Film size={25} />}
+            <h3>{episodeSort === "popular"
+              ? "Drama populer segera hadir"
+              : episodes.length ? "Drama tidak ditemukan" : "Drama baru segera hadir"}</h3>
+            <p>{episodeSort === "popular"
+              ? popularEpisodeIds === null
+                ? "Daftar populer akan tersedia setelah analytics drama diaktifkan."
+                : "Peringkat populer akan muncul setelah episode mulai ditonton."
+              : episodes.length ? "Coba kata kunci atau genre yang berbeda." : "Drama terbaru akan tampil di sini setelah diterbitkan."}</p>
+            {episodes.length > 0 && <button type="button" onClick={() => { setSearch(""); setSelectedGenre("Semua"); }}>Hapus filter</button>}
+          </section>
+        )}
+      </section>
+
+      <footer className="drama-footer">
+        <Link href="/" className="drama-brand drama-wordmark" aria-label="Youvie beranda">You<span>Vie.</span></Link>
+        <span>Cerita seru, selalu menemani.</span>
+        <a href="#top">Kembali ke atas <ArrowRight size={14} /></a>
       </footer>
     </main>
   );

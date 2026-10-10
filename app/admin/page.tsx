@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState } from "react";
-import { ArrowLeft, Archive, BookOpen, ChartNoAxesColumn, Check, ClipboardList, Eye, Image as ImageIcon, LayoutDashboard, LoaderCircle, List, Megaphone, Search, Settings2, ShieldCheck, UserRound, Users, Video, X } from "lucide-react";
+import { Archive, BookOpen, Check, Clapperboard, Eye, Image as ImageIcon, LoaderCircle, Search, UserRound, Users } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
-import BrandLogo from "@/components/brand-logo";
+import AdminSidebar from "./admin-sidebar";
 import AdminAnalyticsPanel from "./analytics-panel";
 import AdsManagementPanel from "./ads-management-panel";
 import HomepagePromosPanel from "./homepage-promos-panel";
@@ -16,26 +16,29 @@ import { defaultPlatformSettings, type PlatformSettings } from "@/lib/platform-s
 import { usePlatformSettings } from "../platform-runtime";
 import { READER_MEMBERSHIP_TIERS, type ReaderMembershipTier } from "@/lib/reader-membership";
 
-type ComicReview = { id: string; title: string; slug: string; synopsis: string; contributor: string; created_at: string; creator_id: string; creator: string };
 type AdminUser = { id: string; display_name: string; role: "reader" | "creator" | "admin"; membershipTier: ReaderMembershipTier; created_at: string };
 type AdminComic = { id: string; title: string; slug: string; synopsis: string; contributor: string; genre: string; cover_key: string | null; share_preview_key: string | null; status: "draft" | "pending_review" | "published" | "archived"; created_at: string; creator_id: string; creator: string };
+type OverviewDrama = {
+  status: "draft" | "published" | "archived";
+  drama_seasons: { drama_episodes: { status: "draft" | "published" | "archived" }[] | null }[] | null;
+};
+type DramaStats = { totalSeries: number; publishedSeries: number; publishedEpisodes: number };
 type SettingsAuditEntry = { id: number; changed_by: string | null; changed_at: string; previous_values: Record<string, unknown>; new_values: Record<string, unknown> };
-type AdminSection = "overview" | "analytics" | "comic-review" | "users" | "comics" | "share-previews" | "ad-requests" | "ads-management" | "ads-list" | "sponsor-campaigns" | "ad-slots" | "homepage-promos" | "platform-settings";
+type AdminSection = "overview" | "analytics" | "users" | "comics" | "share-previews" | "ad-requests" | "ads-management" | "ads-list" | "sponsor-campaigns" | "ad-slots" | "homepage-promos" | "platform-settings";
 
 const supabase = createClient();
 const adminSections: Record<AdminSection, { label: string; description: string }> = {
-  overview: { label: "Dasbor admin", description: "Kelola akun, komik, kurasi, dan pengajuan kreator Youvie." },
-  analytics: { label: "Analitik", description: "Pantau aktivitas membaca dan komik yang paling banyak dibaca." },
-  "comic-review": { label: "Kurasi komik", description: "Tinjau komik yang menunggu persetujuan untuk diterbitkan." },
+  overview: { label: "Dasbor admin", description: "Pantau pengguna, serial drama, dan episode Youvie." },
+  analytics: { label: "Analitik drama", description: "Pantau penayangan serial dan episode drama." },
   users: { label: "Manajemen pengguna", description: "Kelola akun dan peran pengguna." },
   comics: { label: "Katalog komik", description: "Cari komik dan kelola status publikasinya." },
   "share-previews": { label: "Pratinjau berbagi komik", description: "Buat gambar pratinjau statis di R2 agar dapat ditampilkan di WhatsApp dan platform sosial." },
-  "ad-requests": { label: "Pengajuan iklan", description: "Tinjau kebutuhan kampanye iklan dari calon pengiklan." },
-  "ads-management": { label: "Kampanye sponsor", description: "Kelola kampanye, materi, target, dan periode tayang sponsor." },
-  "ads-list": { label: "Slot iklan", description: "Kelola inventaris penempatan iklan di Youvie." },
-  "sponsor-campaigns": { label: "Kampanye sponsor", description: "Kelola kampanye, materi, target, dan periode tayang sponsor." },
-  "ad-slots": { label: "Slot iklan", description: "Kelola inventaris penempatan iklan di Youvie." },
-  "homepage-promos": { label: "Hero & promo beranda", description: "Kelola slide hero, gambar responsif, tautan, urutan, dan jadwal promo beranda." },
+  "ad-requests": { label: "Pengajuan iklan drama", description: "Tinjau materi dan kebutuhan kampanye dari calon pengiklan drama." },
+  "ads-management": { label: "Kampanye sponsor drama", description: "Kelola kampanye drama, materi, target serial, dan periode tayang." },
+  "ads-list": { label: "Slot iklan drama", description: "Kelola lokasi penempatan iklan di platform drama." },
+  "sponsor-campaigns": { label: "Kampanye sponsor drama", description: "Kelola kampanye drama, materi, target serial, dan periode tayang." },
+  "ad-slots": { label: "Slot iklan drama", description: "Kelola lokasi penempatan iklan di platform drama." },
+  "homepage-promos": { label: "Hero & promo beranda", description: "Promosikan serial dan episode drama dengan slide hero, gambar responsif, dan jadwal tayang." },
   "platform-settings": { label: "Pengaturan platform", description: "Atur status operasional dan fitur yang tersedia di Youvie." },
 };
 const roleLabels = { reader: "Pembaca", creator: "Pembaca", admin: "Admin" };
@@ -61,9 +64,10 @@ export default function AdminPage() {
   const section = requestedSection && requestedSection in adminSections
     ? requestedSection as AdminSection
     : "overview";
-  const [comicReviews, setComicReviews] = useState<ComicReview[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [comics, setComics] = useState<AdminComic[]>([]);
+  const [dramaStats, setDramaStats] = useState<DramaStats | null>(null);
+  const [dramaStatsError, setDramaStatsError] = useState("");
   const [adminUserId, setAdminUserId] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
@@ -93,12 +97,15 @@ export default function AdminPage() {
       return;
     }
     setAdminUserId(userData.user.id);
-    const [profileResult, membershipResult, comicResult] = await Promise.all([
+    const [profileResult, membershipResult, comicResult, dramaResult] = await Promise.all([
       supabase.from("profiles").select("id, display_name, role, created_at").order("created_at", { ascending: false }),
       supabase.from("reader_memberships").select("user_id, tier"),
       supabase.from("comics").select("id, title, slug, synopsis, contributor, genre, cover_key, share_preview_key, status, created_at, creator_id").order("created_at", { ascending: false }),
+      supabase.from("drama_series")
+        .select("status, drama_seasons(drama_episodes(status))")
+        .returns<OverviewDrama[]>(),
     ]);
-    const loadErrors = [profileResult.error, membershipResult.error, comicResult.error].filter(Boolean);
+    const loadErrors = [profileResult.error, membershipResult.error].filter(Boolean);
     if (loadErrors.length) {
       const missingMembershipTable = membershipResult.error?.code === "42P01" || membershipResult.error?.code === "PGRST205";
       setMessage(missingMembershipTable
@@ -117,24 +124,34 @@ export default function AdminPage() {
     })) as AdminUser[];
     const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
     setUsers(profiles);
-    const comicData = (comicResult.data ?? []) as Omit<AdminComic, "creator">[];
-    setComics(comicData.map((comic) => ({
-      ...comic,
-      creator: profileMap.get(comic.creator_id)?.display_name || `Akun ${comic.creator_id.slice(0, 8)}`,
-    })));
-    const { data: pendingComics, error: comicError } = await supabase
-      .from("comics")
-      .select("id, title, slug, synopsis, contributor, created_at, creator_id")
-      .eq("status", "pending_review")
-      .order("created_at", { ascending: true });
-    if (comicError) {
-      console.error("Unable to load comics pending review:", comicError);
-      setMessage("Daftar komik yang menunggu kurasi gagal dimuat. Coba muat ulang halaman.");
+    if (comicResult.error) {
+      console.error("Unable to load legacy comic admin data:", comicResult.error);
+      if (section === "comics" || section === "share-previews") {
+        setMessage("Data komik lama gagal dimuat. Periksa koneksi dan konfigurasi database.");
+      }
     } else {
-      setComicReviews((pendingComics ?? []).map((comic) => ({
+      const comicData = (comicResult.data ?? []) as Omit<AdminComic, "creator">[];
+      setComics(comicData.map((comic) => ({
         ...comic,
         creator: profileMap.get(comic.creator_id)?.display_name || `Akun ${comic.creator_id.slice(0, 8)}`,
       })));
+    }
+    if (dramaResult.error) {
+      console.error("Unable to load drama statistics for admin overview:", dramaResult.error);
+      setDramaStatsError("Statistik drama gagal dimuat. Pastikan supabase/video-catalog.sql sudah diterapkan.");
+    } else {
+      const dramaSeries = dramaResult.data ?? [];
+      setDramaStats({
+        totalSeries: dramaSeries.length,
+        publishedSeries: dramaSeries.filter((series) => series.status === "published").length,
+        publishedEpisodes: dramaSeries
+          .filter((series) => series.status === "published")
+          .flatMap((series) => series.drama_seasons ?? [])
+          .flatMap((season) => season.drama_episodes ?? [])
+          .filter((episode) => episode.status === "published")
+          .length,
+      });
+      setDramaStatsError("");
     }
     setLoading(false);
   });
@@ -336,7 +353,7 @@ export default function AdminPage() {
     setActionId(null);
   };
 
-  const updateComicStatus = async (comic: AdminComic, status: "pending_review" | "archived" | "draft") => {
+  const updateComicStatus = async (comic: AdminComic, status: "archived" | "draft") => {
     setComicActionId(comic.id);
     setMessage("");
     const { data, error } = await supabase
@@ -353,38 +370,8 @@ export default function AdminPage() {
         : "Status komik sudah berubah. Muat ulang halaman.");
     } else {
       setComics((current) => current.map((item) => item.id === comic.id ? { ...item, status } : item));
-      if (status === "pending_review") {
-        const reviewItem: ComicReview = { ...comic };
-        setComicReviews((current) => [reviewItem, ...current]);
-      } else {
-        setComicReviews((current) => current.filter((item) => item.id !== comic.id));
-      }
       setMessage(`${comic.title}: status diubah menjadi ${comicStatusLabels[status]}.`);
     }
-    setComicActionId(null);
-  };
-
-  const reviewComic = async (comic: ComicReview, decision: "published" | "draft") => {
-    setComicActionId(comic.id);
-    setMessage("");
-    const { data, error } = await supabase
-      .from("comics")
-      .update({ status: decision })
-      .eq("id", comic.id)
-      .eq("status", "pending_review")
-      .select("id")
-      .maybeSingle();
-    if (error || !data) {
-      if (error) console.error("Unable to review comic:", error);
-      setMessage(error
-        ? "Kurasi komik gagal diperbarui. Periksa koneksi dan coba lagi."
-        : "Komik ini sudah dikurasi admin lain. Muat ulang halaman.");
-      setComicActionId(null);
-      return;
-    }
-    setComicReviews((current) => current.filter((item) => item.id !== comic.id));
-    setComics((current) => current.map((item) => item.id === comic.id ? { ...item, status: decision } : item));
-    setMessage(decision === "published" ? `${comic.title} berhasil diterbitkan.` : `${comic.title} ditolak dan dikembalikan ke draft.`);
     setComicActionId(null);
   };
 
@@ -393,7 +380,6 @@ export default function AdminPage() {
     const matchesSearch = `${comic.title} ${comic.creator} ${comic.genre}`.toLowerCase().includes(comicSearch.toLowerCase());
     return matchesSearch && (comicStatusFilter === "all" || comic.status === comicStatusFilter);
   });
-  const publishedComics = comics.filter((comic) => comic.status === "published").length;
   const generatedSharePreviews = comics.filter((comic) => comic.status === "published" && comic.share_preview_key);
 
   if (loading) return <main className="admin-shell"><LoaderCircle className="spin" size={24} /></main>;
@@ -401,46 +387,8 @@ export default function AdminPage() {
   return (
     <main className="admin-shell">
       <div className="admin-layout">
-        <aside className="admin-sidebar">
-          <BrandLogo className="admin-brand" showName />
-          <nav className="admin-sidebar-links" aria-label="Navigasi dashboard admin">
-            <p className="admin-sidebar-label">Administrasi</p>
-            <div className="admin-sidebar-group" aria-label="Dasbor">
-              <p className="admin-sidebar-group-label">Dasbor</p>
-              <Link href="/admin/overview" aria-current={section === "overview" ? "page" : undefined}><LayoutDashboard size={18} /><span>Ringkasan</span></Link>
-              <Link href="/admin/analytics" aria-current={section === "analytics" ? "page" : undefined}><ChartNoAxesColumn size={18} /><span>Analitik</span></Link>
-            </div>
-            <div className="admin-sidebar-group" aria-label="Moderasi">
-              <p className="admin-sidebar-group-label">Moderasi</p>
-              <Link href="/admin/comic-review" aria-current={section === "comic-review" ? "page" : undefined}><BookOpen size={18} /><span>Kurasi komik</span>{comicReviews.length > 0 && <small>{comicReviews.length}</small>}</Link>
-            </div>
-            <div className="admin-sidebar-group" aria-label="Kelola konten">
-              <p className="admin-sidebar-group-label">Kelola konten</p>
-              <Link href="/admin/video-upload"><Video size={18} /><span>Upload video drama</span></Link>
-              <Link href="/admin/users" aria-current={section === "users" ? "page" : undefined}><Users size={18} /><span>Pengguna</span></Link>
-              <Link href="/admin/comics" aria-current={section === "comics" ? "page" : undefined}><BookOpen size={18} /><span>Katalog komik</span></Link>
-              <Link href="/admin/share-previews" aria-current={section === "share-previews" ? "page" : undefined}><ImageIcon size={18} /><span>Pratinjau berbagi</span></Link>
-              <Link href="/admin/homepage-promos" aria-current={section === "homepage-promos" ? "page" : undefined}><ImageIcon size={18} /><span>Hero & promo beranda</span></Link>
-            </div>
-            <div className="admin-sidebar-group" aria-label="Manajemen iklan">
-              <p className="admin-sidebar-group-label">Manajemen iklan</p>
-              <Link href="/admin/sponsor-campaigns" aria-current={section === "sponsor-campaigns" || section === "ads-management" ? "page" : undefined}><Megaphone size={18} /><span>Kampanye sponsor</span></Link>
-              <Link href="/admin/ad-requests" aria-current={section === "ad-requests" ? "page" : undefined}><ClipboardList size={18} /><span>Pengajuan iklan</span></Link>
-              <Link href="/admin/ad-slots" aria-current={section === "ad-slots" || section === "ads-list" ? "page" : undefined}><List size={18} /><span>Slot iklan</span></Link>
-            </div>
-            <div className="admin-sidebar-group" aria-label="Pengaturan">
-              <p className="admin-sidebar-group-label">Pengaturan</p>
-              <Link href="/admin/platform-settings" aria-current={section === "platform-settings" ? "page" : undefined}><Settings2 size={18} /><span>Pengaturan platform</span></Link>
-            </div>
-          </nav>
-          <div className="admin-sidebar-user">
-            <span className="admin-user-avatar"><ShieldCheck size={18} /></span>
-            <span><strong>Administrator</strong><small>Akses penuh</small></span>
-            <Link href="/account" aria-label="Kembali ke Akun"><ArrowLeft size={17} /></Link>
-          </div>
-        </aside>
+        <AdminSidebar activeSection={section} />
         <div className="admin-main">
-          <div className="admin-mobile-header"><BrandLogo showName /><Link className="admin-account-link" href="/account"><ArrowLeft size={16} /> Akun</Link></div>
           <header className="admin-header">
             <p className="eyebrow">Panel administrasi</p>
             <div className="admin-title">
@@ -449,33 +397,36 @@ export default function AdminPage() {
           </header>
           <section className="admin-content">
         {message && <p className="admin-message" role="status">{message}</p>}
-        {section === "overview" && <section className="admin-dashboard" id="overview" aria-label="Ringkasan">
+        {section === "overview" && <>
+          {dramaStatsError && <p className="admin-settings-error" role="alert">{dramaStatsError}</p>}
+          <section className="admin-dashboard" id="overview" aria-label="Ringkasan drama">
           <article className="admin-stat"><span>Total pengguna</span><strong>{users.length}</strong><UserRound size={20} /></article>
-          <article className="admin-stat"><span>Total komik</span><strong>{comics.length}</strong><BookOpen size={20} /></article>
-          <article className="admin-stat"><span>Komik terbit</span><strong>{publishedComics}</strong><Eye size={20} /></article>
-          <article className="admin-stat"><span>Perlu ditinjau</span><strong>{comicReviews.length}</strong><ShieldCheck size={20} /></article>
-        </section>}
+          <article className="admin-stat"><span>Total serial drama</span><strong>{dramaStats?.totalSeries ?? "—"}</strong><BookOpen size={20} /></article>
+          <article className="admin-stat"><span>Serial sedang tayang</span><strong>{dramaStats?.publishedSeries ?? "—"}</strong><Clapperboard size={20} /></article>
+          <article className="admin-stat"><span>Episode tayang</span><strong>{dramaStats?.publishedEpisodes ?? "—"}</strong><Eye size={20} /></article>
+          </section>
+        </>}
         {(section === "ads-management" || section === "sponsor-campaigns") && <section className="admin-management-section">
           <div className="admin-section-heading">
-            <div><p className="eyebrow">Monetisasi platform</p><h2>Kampanye sponsor</h2><p>Kelola kampanye, materi, target komik, dan periode tayang. Kampanye aktif ditayangkan pada slot selama periode kampanye.</p></div>
+            <div><p className="eyebrow">Monetisasi drama</p><h2>Kampanye sponsor drama</h2><p>Kelola sponsor, materi, target serial, slot, dan periode kampanye drama.</p></div>
           </div>
           <AdsManagementPanel key="campaigns" mode="campaigns" />
         </section>}
         {(section === "ads-list" || section === "ad-slots") && <section className="admin-management-section">
           <div className="admin-section-heading">
-            <div><p className="eyebrow">Monetisasi platform</p><h2>Slot iklan</h2><p>Kelola lokasi penayangan, format, kode, serta status aktif setiap slot.</p></div>
+            <div><p className="eyebrow">Monetisasi drama</p><h2>Slot iklan drama</h2><p>Kelola lokasi penayangan iklan di beranda dan feed video drama.</p></div>
           </div>
           <AdsManagementPanel key="slots" mode="slots" />
         </section>}
         {section === "homepage-promos" && <section className="admin-management-section">
           <div className="admin-section-heading">
-            <div><p className="eyebrow">Konten beranda</p><h2>Hero & promo beranda</h2><p>Buat carousel promo dengan gambar dan konten bebas, tanpa mengambil data dari katalog komik.</p></div>
+            <div><p className="eyebrow">Promosi drama</p><h2>Hero & promo beranda</h2><p>Buat carousel untuk menyorot serial, episode terbaru, atau pilihan drama Youvie.</p></div>
           </div>
           <HomepagePromosPanel />
         </section>}
         {section === "ad-requests" && <section className="admin-management-section">
           <div className="admin-section-heading">
-            <div><p className="eyebrow">Monetisasi platform</p><h2>Pengajuan iklan</h2><p>Persetujuan mengaktifkan kampanye di sistem iklan publik untuk setiap slot yang dipilih. Pastikan materi, jadwal, dan ketersediaan slot sudah dikonfirmasi.</p></div>
+            <div><p className="eyebrow">Monetisasi drama</p><h2>Pengajuan iklan drama</h2><p>Tinjau permintaan dan aktifkan kampanye untuk slot yang dipilih setelah materi, jadwal, dan ketersediaan penempatan dikonfirmasi.</p></div>
           </div>
           <AdRequestsPanel />
         </section>}
@@ -597,34 +548,6 @@ export default function AdminPage() {
             <div className="admin-empty"><ImageIcon size={26} /><h2>Belum ada pratinjau yang dibuat.</h2><p>Pratinjau komik akan tercatat di tabel ini setelah proses berhasil.</p></div>
           )}
         </section>}
-        {section === "comic-review" && <section className="comic-review-section" id="comic-review">
-          <div className="admin-section-heading">
-            <div><p className="eyebrow">Antrean publikasi</p><h2>Kurasi komik</h2></div>
-            <span>{comicReviews.length} menunggu kurasi</span>
-          </div>
-          {comicReviews.length === 0 ? (
-            <div className="admin-empty comic-review-empty"><ShieldCheck size={26} /><h2>Tidak ada komik untuk ditinjau.</h2><p>Pengajuan komik dari kreator akan tampil di sini.</p></div>
-          ) : (
-            <div className="comic-review-list">
-              {comicReviews.map((comic) => (
-                <article className="comic-review-card" key={comic.id}>
-                  <div className="comic-review-copy">
-                    <span className="request-status request-pending">Menunggu kurasi</span>
-                    <h3>{comic.title}</h3>
-                    <p className="comic-review-creator">Oleh {comic.creator} · {new Date(comic.created_at).toLocaleDateString("id-ID")}</p>
-                    <p className="comic-review-synopsis">{comic.synopsis}</p>
-                    {comic.contributor && <p className="comic-review-contributor">Kontributor: {comic.contributor}</p>}
-                  </div>
-                  <div className="comic-review-actions">
-                    <Link className="button button-light" href={`/account/komik/${comic.id}`}><Eye size={15} /> Tinjau komik</Link>
-                    <button className="approve-button" onClick={() => reviewComic(comic, "published")} disabled={comicActionId === comic.id}><Check size={16} /> Terbitkan</button>
-                    <button className="reject-button" onClick={() => reviewComic(comic, "draft")} disabled={comicActionId === comic.id}><X size={16} /> Kembalikan ke draf</button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>}
         {section === "users" && <section className="admin-management-section" id="user-management">
           <div className="admin-section-heading">
             <div><p className="eyebrow">Akun dan akses</p><h2>Manajemen pengguna</h2></div>
@@ -670,7 +593,6 @@ export default function AdminPage() {
             <select aria-label="Saring berdasarkan status" value={comicStatusFilter} onChange={(event) => setComicStatusFilter(event.target.value)}>
               <option value="all">Semua status</option>
               <option value="draft">Draf</option>
-              <option value="pending_review">Menunggu kurasi</option>
               <option value="published">Terbit</option>
               <option value="archived">Diarsipkan</option>
             </select>
@@ -689,10 +611,8 @@ export default function AdminPage() {
                     <td><span className={`request-status request-${comic.status === "published" ? "approved" : comic.status === "pending_review" ? "pending" : comic.status}`}>{comicStatusLabels[comic.status]}</span></td>
                     <td className="admin-comic-actions">
                       <Link className="admin-manage-link" href={`/account/komik/${comic.id}`}>Kelola</Link>
-                      {comic.status === "draft" && <button className="admin-action-link" onClick={() => updateComicStatus(comic, "pending_review")} disabled={comicActionId === comic.id}>Ajukan kurasi</button>}
                       {comic.status === "published" && <button className="admin-action-link admin-action-danger" onClick={() => updateComicStatus(comic, "archived")} disabled={comicActionId === comic.id}><Archive size={14} /> Arsipkan</button>}
                       {comic.status === "archived" && <button className="admin-action-link" onClick={() => updateComicStatus(comic, "draft")} disabled={comicActionId === comic.id}>Pulihkan ke draf</button>}
-                      {comic.status === "pending_review" && <a className="admin-action-link" href="#comic-review">Lihat antrean</a>}
                     </td>
                   </tr>
                 ))}</tbody>

@@ -52,8 +52,8 @@ function emptyPromo(): PromoForm {
     image_url: "",
     image_url_tablet: "",
     image_url_mobile: "",
-    cta_label: "Selengkapnya",
-    destination_url: "",
+    cta_label: "Tonton sekarang",
+    destination_url: "/",
     sort_order: 0,
     starts_on: localDate(),
     ends_on: localDate(30),
@@ -63,7 +63,7 @@ function emptyPromo(): PromoForm {
 
 function errorMessage(code?: string) {
   if (code === "42P01" || code === "PGRST205") {
-    return "Tabel promo beranda belum tersedia. Jalankan supabase/homepage-promos.sql di Supabase SQL Editor.";
+    return "Tabel promo drama belum tersedia. Jalankan supabase/drama-homepage-promos.sql di Supabase SQL Editor.";
   }
   if (code === "42501" || code === "PGRST301") {
     return "Akses ditolak. Pastikan akun memiliki peran admin dan kebijakan database sudah diterapkan.";
@@ -90,18 +90,20 @@ export default function HomepagePromosPanel() {
   const [uploading, setUploading] = useState<PromoImageField | null>(null);
   const [workingId, setWorkingId] = useState("");
   const [message, setMessage] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const loadPromos = useCallback(async (): Promise<boolean> => {
     const { data, error } = await supabase
-      .from("homepage_promos")
+      .from("drama_homepage_promos")
       .select("id, eyebrow, title, description, image_url, image_url_tablet, image_url_mobile, cta_label, destination_url, sort_order, starts_on, ends_on, status")
       .order("sort_order")
       .order("created_at", { ascending: false });
     if (error) {
       console.error("Unable to load homepage promos:", { code: error.code, message: error.message, details: error.details, hint: error.hint });
-      setMessage(errorMessage(error.code));
+      setLoadError(errorMessage(error.code));
       return false;
     }
+    setLoadError("");
     setPromos((data ?? []) as HomepagePromo[]);
     return true;
   }, []);
@@ -200,8 +202,8 @@ export default function HomepagePromosPanel() {
       status: form.status,
     };
     const result = form.id
-      ? await supabase.from("homepage_promos").update(values).eq("id", form.id)
-      : await supabase.from("homepage_promos").insert(values);
+      ? await supabase.from("drama_homepage_promos").update(values).eq("id", form.id)
+      : await supabase.from("drama_homepage_promos").insert(values);
     if (result.error) {
       console.error("Unable to save homepage promo:", { code: result.error.code, message: result.error.message, details: result.error.details, hint: result.error.hint });
       setMessage(errorMessage(result.error.code));
@@ -216,7 +218,7 @@ export default function HomepagePromosPanel() {
   const deletePromo = async (promo: HomepagePromo) => {
     if (!window.confirm(`Hapus promo "${promo.title}"?`)) return;
     setWorkingId(promo.id);
-    const { error } = await supabase.from("homepage_promos").delete().eq("id", promo.id);
+    const { error } = await supabase.from("drama_homepage_promos").delete().eq("id", promo.id);
     if (error) {
       console.error("Unable to delete homepage promo:", { code: error.code, message: error.message, details: error.details, hint: error.hint });
       setMessage(errorMessage(error.code));
@@ -232,23 +234,24 @@ export default function HomepagePromosPanel() {
 
   return (
     <div className="ads-management-panel">
+      {loadError && <p className="admin-message" role="alert">{loadError}</p>}
       {message && <p className="admin-message" role={message.includes("berhasil") ? "status" : "alert"}>{message}</p>}
       <section className="ads-management-card" aria-labelledby="homepage-promos-title">
         <div className="admin-section-heading">
-          <div><p className="eyebrow">Konten beranda</p><h2 id="homepage-promos-title">Hero & promo</h2><p>Atur slide promosi independen dari katalog komik. Urutan terkecil tampil lebih dahulu.</p></div>
-          {!formVisible && <button className="approve-button" type="button" onClick={() => { setForm(emptyPromo()); setFormVisible(true); setMessage(""); }}><Plus size={15} /> Tambah promo</button>}
+          <div><p className="eyebrow">Promosi drama</p><h2 id="homepage-promos-title">Hero & promo drama</h2><p>Promosikan serial, episode terbaru, dan pilihan drama di beranda Youvie. Urutan terkecil tampil lebih dahulu.</p></div>
+          {!formVisible && <button className="approve-button" type="button" onClick={() => { setForm(emptyPromo()); setFormVisible(true); setMessage(""); }} disabled={Boolean(loadError)}><Plus size={15} /> Tambah promo</button>}
         </div>
 
         {formVisible && <form className="ads-form homepage-promo-form" onSubmit={savePromo}>
           <h3>{form.id ? "Ubah promo beranda" : "Promo baru"}</h3>
           <div className="ads-form-two-columns">
-            <label>Label kecil (opsional)<input value={form.eyebrow} maxLength={80} onChange={(event) => setForm((current) => ({ ...current, eyebrow: event.target.value }))} placeholder="PROMO SPESIAL" /></label>
-            <label>Judul<input required value={form.title} maxLength={120} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} /></label>
+            <label>Label kecil (opsional)<input value={form.eyebrow} maxLength={80} onChange={(event) => setForm((current) => ({ ...current, eyebrow: event.target.value }))} placeholder="DRAMA PILIHAN" /></label>
+            <label>Judul drama atau promo<input required value={form.title} maxLength={120} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Contoh: serial drama unggulan" /></label>
           </div>
-          <label>Deskripsi<textarea value={form.description} maxLength={500} rows={3} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} /></label>
+          <label>Deskripsi drama atau promo<textarea value={form.description} maxLength={500} rows={3} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Tulis sinopsis singkat atau ajakan untuk menonton." /></label>
           <div className="ads-form-two-columns">
-            <label>Teks tombol<input value={form.cta_label} maxLength={40} onChange={(event) => setForm((current) => ({ ...current, cta_label: event.target.value }))} placeholder="Selengkapnya" /></label>
-            <label>Tautan tujuan<input required value={form.destination_url} onChange={(event) => setForm((current) => ({ ...current, destination_url: event.target.value }))} placeholder="/promo atau https://contoh.id" /></label>
+            <label>Teks tombol<input value={form.cta_label} maxLength={40} onChange={(event) => setForm((current) => ({ ...current, cta_label: event.target.value }))} placeholder="Tonton sekarang" /></label>
+            <label>Tautan tujuan<input required value={form.destination_url} onChange={(event) => setForm((current) => ({ ...current, destination_url: event.target.value }))} placeholder="/ atau tautan halaman drama" /></label>
           </div>
           <div className="ads-form-two-columns">
             {imageFields.map(({ field, label, recommendation }) => (
@@ -289,7 +292,7 @@ export default function HomepagePromosPanel() {
               </div>
             </li>
           ))}
-        </ul> : <div className="ads-empty-state"><ImageIcon size={22} /><p>Belum ada promo. Tambahkan slide untuk menggantikan hero komik di beranda.</p></div>}
+        </ul> : !loadError && <div className="ads-empty-state"><ImageIcon size={22} /><p>Belum ada promo drama. Tambahkan slide untuk menyorot serial atau episode di beranda.</p></div>}
       </section>
     </div>
   );

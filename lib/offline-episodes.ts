@@ -3,6 +3,7 @@ export const OFFLINE_LICENSE_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const DATABASE_NAME = "mu-komik-offline";
 const DATABASE_VERSION = 1;
 const EPISODES_STORE = "episodes";
+const OFFLINE_EPISODES_MARKER = "mu-komik:offline-has-episodes:";
 
 export type OfflineEpisodePage = {
   id: string;
@@ -68,6 +69,24 @@ export function getOfflineEpisodes(): Promise<OfflineEpisode[]> {
   return runTransaction("readonly", (store) => store.getAll());
 }
 
+async function hasOfflineEpisodes(ownerId: string): Promise<boolean> {
+  const marker = localStorage.getItem(`${OFFLINE_EPISODES_MARKER}${ownerId}`);
+  if (marker === "true") return true;
+  if (marker === "false") return false;
+  if (typeof indexedDB === "undefined") return false;
+  if (typeof indexedDB.databases === "function") {
+    const databases = await indexedDB.databases();
+    if (!databases.some((database) => database.name === DATABASE_NAME)) {
+      localStorage.setItem(`${OFFLINE_EPISODES_MARKER}${ownerId}`, "false");
+      return false;
+    }
+  }
+  const episodes = await getOfflineEpisodes();
+  const hasEpisodes = episodes.some((episode) => episode.ownerId === ownerId);
+  localStorage.setItem(`${OFFLINE_EPISODES_MARKER}${ownerId}`, String(hasEpisodes));
+  return hasEpisodes;
+}
+
 export function getOfflineEpisode(chapterId: string): Promise<OfflineEpisode | undefined> {
   return runTransaction("readonly", (store) => store.get(chapterId));
 }
@@ -114,6 +133,11 @@ export async function saveOfflineEpisode(episode: OfflineEpisode, replacementCha
     }
     transaction.oncomplete = () => {
       database.close();
+      try {
+        localStorage.setItem(`${OFFLINE_EPISODES_MARKER}${episode.ownerId}`, "true");
+      } catch (storageError) {
+        console.warn("Unable to cache offline episode availability for membership sync:", storageError);
+      }
       resolve();
     };
     transaction.onerror = () => {
@@ -189,11 +213,13 @@ export async function revokeOfflineLicenses(ownerId: string): Promise<void> {
 export async function synchronizeOfflineMembership(ownerId: string, tier: "free" | "premium" | "vip"): Promise<void> {
   const revocationKey = `mu-komik:offline-revoked:${ownerId}`;
   if (tier === "premium" || tier === "vip") {
-    await refreshOfflineLicenses(ownerId);
     localStorage.removeItem(revocationKey);
+    if (!(await hasOfflineEpisodes(ownerId))) return;
+    await refreshOfflineLicenses(ownerId);
     return;
   }
   localStorage.setItem(revocationKey, String(Date.now()));
+  if (!(await hasOfflineEpisodes(ownerId))) return;
   await revokeOfflineLicenses(ownerId);
 }
 

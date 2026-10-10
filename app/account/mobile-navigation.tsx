@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { BookOpen, Bookmark, Home, LayoutDashboard, Settings2, Video } from "lucide-react";
+import { Bookmark, Home, LayoutDashboard, Settings2, Video } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -67,9 +67,9 @@ export default function AccountMobileNavigation() {
 
   return (
     <nav className="account-mobile-nav" aria-label="Navigasi akun">
-        <Link href="/account" className={current("overview") ? "active" : ""} aria-current={current("overview") ? "page" : undefined}><LayoutDashboard size={19} /><span>Ringkasan</span></Link>
         <Link href="/"><Home size={19} /><span>Beranda</span></Link>
-        <Link href="/account/reading" className={current("reading") ? "active" : ""} aria-current={current("reading") ? "page" : undefined}><BookOpen size={19} /><span>Baca</span></Link>
+        <Link href="/account" className={current("overview") ? "active" : ""} aria-current={current("overview") ? "page" : undefined}><LayoutDashboard size={19} /><span>Ringkasan</span></Link>
+        <Link href="/account/watching" className={current("watching") ? "active" : ""} aria-current={current("watching") ? "page" : undefined}><Video size={19} /><span>Tonton</span></Link>
         <Link href="/account/favorites" className={current("favorites") ? "active" : ""} aria-current={current("favorites") ? "page" : undefined}><Bookmark size={19} /><span>Favorit</span></Link>
         <Link href="/account/account-settings" className={current("account-settings") ? "active" : ""} aria-current={current("account-settings") ? "page" : undefined}><Settings2 size={19} /><span>Akun</span></Link>
         {canManageVideos && <Link href="/admin/video-upload" className={pathname === "/admin/video-upload" ? "active" : ""} aria-current={pathname === "/admin/video-upload" ? "page" : undefined}><Video size={19} /><span>Upload video</span></Link>}
