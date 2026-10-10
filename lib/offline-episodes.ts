@@ -35,7 +35,7 @@ function openDatabase(): Promise<IDBDatabase> {
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("Penyimpanan offline gagal dibuka."));
-    request.onblocked = () => reject(new Error("Penyimpanan offline sedang dipakai tab lain. Tutup tab MU-Komik lain lalu coba lagi."));
+    request.onblocked = () => reject(new Error("Penyimpanan offline sedang dipakai tab lain. Tutup tab Youvie lain lalu coba lagi."));
   });
 }
 

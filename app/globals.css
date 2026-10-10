@@ -1871,3 +1871,12 @@ html[data-theme="dark"] .reader-home-content .reader-latest-comic-grid .reader-c
   .account-profile-editor .creator-social-row { grid-template-columns: minmax(0, 1fr); }
   .account-profile-editor .creator-social-row > button { justify-self: end; }
 }
+
+.admin-video-message { display: flex; align-items: center; gap: 8px; margin: 0 0 18px; padding: 11px 14px; border-left: 3px solid #3b7965; background: #edf6f0; color: #286a4f; font-size: .85rem; }
+.admin-video-message-error { border-color: #b43b31; background: #fff0ed; color: #9b3029; }
+.admin-video-access-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+.admin-video-access-controls select { min-width: min(100%, 340px); min-height: 42px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); }
+.admin-video-access-controls button { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.admin-video-title { margin-top: 20px; }
+.admin-video-title h1 { margin: 8px 0 0; font-size: clamp(2.4rem, 5vw, 4rem); letter-spacing: -.07em; }
+@media (max-width: 760px) { .admin-video-access-controls, .admin-video-access-controls select, .admin-video-access-controls button { width: 100%; } }

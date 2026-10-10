@@ -1,8 +1,9 @@
-## mu-komik
+## Youvie
 
-mu-komik is being rebuilt around Next.js, Supabase Auth/Postgres, and Cloudflare R2. The current screen is the reader discovery shell; backend features are added against the schema in `supabase/schema.sql`.
+Youvie is a short-drama platform built with Next.js and Supabase Auth/Postgres. Drama series are organized by season and episode. Video upload and playback remain disabled until a streaming provider is selected.
 
 For existing Supabase projects, run `supabase/comic-contributors.sql` once before editing comic contributor details.
+Run `supabase/video-catalog.sql` once in the Supabase SQL Editor to create Youvie's drama-series, season, episode, and video-uploader permission tables. Existing account roles and creator data are not modified. Admins can grant upload access from `/admin/video-upload`; video file uploads stay disabled until a streaming provider is selected.
 For comic publishing and admin curation, run `supabase/comic-curation.sql` once on existing Supabase projects.
 For the admin dashboard, run `supabase/creator-request.sql` first, then `supabase/admin-management.sql` to grant admin access to profile management.
 For comic-level bookmarks on an existing database, run `supabase/comic-bookmarks.sql` once.
@@ -45,7 +46,7 @@ For production uploads, configure these variables for the deployed Cloudflare Wo
 
 The local `.env.local` file does not configure the production Worker.
 
-For search indexing, set `NEXT_PUBLIC_SITE_URL` to the canonical public origin (`https://mu-komik.com`) in both local and production environments. The app exposes `robots.txt` and a sitemap containing published comics and episodes; submit `https://mu-komik.com/sitemap.xml` to Google Search Console and Bing Webmaster Tools after deployment.
+For search indexing, keep `NEXT_PUBLIC_SITE_URL` set to the existing canonical public origin in local and production environments. The app exposes `robots.txt` and a sitemap containing published comics and episodes; submit the production sitemap to Google Search Console and Bing Webmaster Tools after deployment.
 
 The home page renders its published comic catalog on the server and includes visible Indonesian platform information. The global layout emits `Organization` and `WebSite` JSON-LD; published comic pages emit `CreativeWorkSeries` and `BreadcrumbList` data. Keep structured data accurate and consistent with visible page content. After deploying SEO changes, inspect the canonical home page and sitemap in Google Search Console; indexing and search snippets are determined by search engines and are not guaranteed.
 

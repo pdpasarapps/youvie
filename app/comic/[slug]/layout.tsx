@@ -42,9 +42,9 @@ export async function generateMetadata({
   const descriptionText = (comic.synopsis || "").replace(/\*\*/g, "").replace(/👉/g, "").replace(/\s+/g, " ").trim();
   const description = descriptionText.length > 160
     ? `${descriptionText.slice(0, 157).trimEnd()}...`
-    : descriptionText || `Baca komik ${comic.title}, genre ${getComicGenreLabel(comic.genre)}, di mu-komik.`;
+    : descriptionText || `Baca komik ${comic.title}, genre ${getComicGenreLabel(comic.genre)}, di Youvie.`;
   const imageBaseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || process.env.R2_PUBLIC_URL;
-  let image = new URL("/logo_mukomik.jpg", siteUrl).toString();
+  let image = new URL("/pwa/icon-512.png", siteUrl).toString();
   if (comic.cover_key && imageBaseUrl) {
     const coverUrl = new URL(imageBaseUrl);
     const imageKey = comic.share_preview_key || comic.cover_key;
@@ -63,8 +63,8 @@ export async function generateMetadata({
     openGraph: {
       type: "article",
       locale: "id_ID",
-      siteName: "mu-komik",
-      title: `${comic.title} — Baca Komik Indonesia | MU Komik`,
+      siteName: "Youvie",
+      title: `${comic.title} — Baca Komik Indonesia | Youvie`,
       description,
       url: canonicalUrl,
       images: [{
@@ -75,7 +75,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title: `${comic.title} — Baca Komik Indonesia | MU Komik`,
+      title: `${comic.title} — Baca Komik Indonesia | Youvie`,
       description,
       images: [image],
     },

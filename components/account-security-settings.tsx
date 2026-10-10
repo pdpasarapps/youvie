@@ -184,7 +184,7 @@ export default function AccountSecuritySettings() {
           <span className="account-extra-setting-icon"><Moon size={18} /></span>
           <div>
             <strong>Tema tampilan</strong>
-            <small>Berlaku di seluruh MU Komik dan tersimpan di browser ini.</small>
+            <small>Berlaku di seluruh Youvie dan tersimpan di browser ini.</small>
           </div>
         </div>
         <div className="account-theme-options" role="group" aria-label="Pilih tema">

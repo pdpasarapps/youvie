@@ -65,7 +65,7 @@ export default function ChapterReaderPage({ seed }: { seed: ChapterReaderSeed })
   const bookTurnInProgressRef = useRef(false);
   const bookTurnSpreadCommitTimeoutRef = useRef<number | null>(null);
   const pagesContainerRef = useRef<HTMLElement>(null);
-  const watermarkLabel = `MU-KOMIK.COM · ${watermarkName}`;
+  const watermarkLabel = `Youvie · ${watermarkName}`;
   const publicUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
   const desktopBookMode = currentDevice === "desktop"
     && (comic?.target_device ?? seed.comic.target_device) === "desktop";
@@ -746,10 +746,10 @@ export default function ChapterReaderPage({ seed }: { seed: ChapterReaderSeed })
                             fallback={
                               <div className="reader-book-house-ad">
                                 <span className="reader-book-house-ad-icon"><BookOpen size={29} /></span>
-                                <span className="reader-book-house-ad-kicker">RUANG IKLAN MU-KOMIK</span>
-                                <strong>Bagikan ceritamu kepada pembaca.</strong>
-                                <span className="reader-book-house-ad-description">Punya komik untuk diterbitkan? Bergabunglah sebagai kreator di MU-Komik.</span>
-                                <Link className="reader-book-house-ad-link" href="/account/creator-application">Mulai berkarya <ArrowRight size={15} /></Link>
+                                <span className="reader-book-house-ad-kicker">RUANG IKLAN Youvie</span>
+                                <strong>Temukan cerita berikutnya.</strong>
+                                <span className="reader-book-house-ad-description">Jelajahi katalog Youvie untuk menemukan serial dan episode lainnya.</span>
+                                <Link className="reader-book-house-ad-link" href="/">Jelajahi Youvie <ArrowRight size={15} /></Link>
                               </div>
                             }
                           />

@@ -4,13 +4,13 @@ export type CreatorSocialLink = {
 };
 
 const socialPlaceholders: Record<string, string> = {
-  Instagram: "@mukomiks atau https://instagram.com/mukomiks",
-  TikTok: "@mukomiks atau https://tiktok.com/@mukomiks",
-  X: "@mukomiks atau https://x.com/mukomiks",
-  YouTube: "@mukomiks atau https://youtube.com/@mukomiks",
-  Facebook: "https://facebook.com/mukomiks",
-  Threads: "@mukomiks atau https://threads.net/@mukomiks",
-  Twitch: "mukomiks atau https://twitch.tv/mukomiks",
+  Instagram: "@contohkreator atau https://instagram.com/contohkreator",
+  TikTok: "@contohkreator atau https://tiktok.com/@contohkreator",
+  X: "@contohkreator atau https://x.com/contohkreator",
+  YouTube: "@contohkreator atau https://youtube.com/@contohkreator",
+  Facebook: "https://facebook.com/contohkreator",
+  Threads: "@contohkreator atau https://threads.net/@contohkreator",
+  Twitch: "contohkreator atau https://twitch.tv/contohkreator",
   Discord: "https://discord.gg/...",
   Website: "https://websitekamu.com",
   Lainnya: "https://...",
@@ -18,7 +18,7 @@ const socialPlaceholders: Record<string, string> = {
 
 export function getCreatorSocialPlaceholder(platform: string, creatorName: string) {
   const creatorHandle = creatorName.trim().toLocaleLowerCase("id-ID").replace(/\s+/g, "") || "namakreator";
-  return (socialPlaceholders[platform] ?? "https://...").replace(/mukomiks/g, creatorHandle);
+  return (socialPlaceholders[platform] ?? "https://...").replace(/contohkreator/g, creatorHandle);
 }
 
 export function normalizeCreatorSocialUrl(platform: string, value: string) {

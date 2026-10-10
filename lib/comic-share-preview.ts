@@ -56,7 +56,7 @@ export async function createComicSharePreview(source: Blob, title: string): Prom
     const textWidth = 600;
     context.fillStyle = "#ffd16b";
     context.font = "700 24px Arial";
-    context.fillText("MU KOMIK  ·  KOMIK INDONESIA", textX, 198);
+    context.fillText("Youvie  ·  KOMIK INDONESIA", textX, 198);
 
     context.fillStyle = "#fff8ec";
     context.font = "700 54px Arial";
@@ -65,7 +65,7 @@ export async function createComicSharePreview(source: Blob, title: string): Prom
 
     context.fillStyle = "#eadfd1";
     context.font = "28px Arial";
-    context.fillText("Baca cerita lengkapnya di mu-komik.com", textX, 520);
+    context.fillText("Baca cerita lengkapnya di Youvie", textX, 520);
 
     const preview = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((blob) => {

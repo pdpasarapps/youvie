@@ -523,7 +523,7 @@ export default function ComicDetailPage({ initialComic, initialChapters }: Comic
     }
     if (navigator.share) {
       try {
-        const shareText = comic ? `Yuk baca ${comic.title} di MU Komik!` : "Yuk baca komik di MU Komik!";
+        const shareText = comic ? `Yuk baca ${comic.title} di Youvie!` : "Yuk baca komik di Youvie!";
         const shareData: ShareData = { title: comic?.title, text: shareText, url };
         await navigator.share(shareData);
         return;
@@ -764,12 +764,6 @@ export default function ComicDetailPage({ initialComic, initialChapters }: Comic
           <p className="reader-detail-genre-count">{getComicGenreLabel(comic.genre)}<span aria-hidden="true">·</span>{chapters.length} episode</p>
           <h1>{comic.title}</h1>
           <p className="reader-detail-creator">Karya <strong>{byline}</strong></p>
-          {creatorProfile?.public_handle && creatorProfile.public_profile && (
-            <Link className="reader-creator-profile-link reader-detail-creator-profile" href={`/kreator/${encodeURIComponent(creatorProfile.public_handle)}`}>
-              Lihat profil kreator {creator}
-              <ArrowRight size={14} />
-            </Link>
-          )}
           {engagement && (
             <div className="reader-detail-engagement" aria-label="Statistik komik">
               <span title={`${engagement.views.toLocaleString("id-ID")} kali dilihat`}><Eye size={15} /><strong>{formatEngagementCount(engagement.views)}</strong><small>Dilihat</small></span>
@@ -812,7 +806,7 @@ export default function ComicDetailPage({ initialComic, initialChapters }: Comic
             <textarea ref={shareUrlRef} className="reader-share-url" aria-label="Tautan komik" readOnly value={shareUrl} onFocus={(event) => event.currentTarget.select()} />
             <div className="reader-share-actions">
               <button className="reader-primary-button" type="button" onClick={() => void copyShareUrl()}><Copy size={17} /> Salin tautan</button>
-              <a className="reader-detail-action" href={`https://wa.me/?text=${encodeURIComponent(`Yuk baca ${comic.title} di MU Komik! ${shareUrl}`)}`} target="_blank" rel="noreferrer"><ExternalLink size={17} /> Bagikan via WhatsApp</a>
+              <a className="reader-detail-action" href={`https://wa.me/?text=${encodeURIComponent(`Yuk baca ${comic.title} di Youvie! ${shareUrl}`)}`} target="_blank" rel="noreferrer"><ExternalLink size={17} /> Bagikan via WhatsApp</a>
             </div>
             {shareMessage && <p className="reader-detail-action-message" role="status">{shareMessage}</p>}
           </section>

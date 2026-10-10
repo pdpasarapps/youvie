@@ -3,9 +3,9 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "mu-komik — komik Indonesia",
-    short_name: "mu-komik",
-    description: "Temukan, baca, dan ikuti komik Indonesia di mu-komik.",
+    name: "Youvie — Drama Pendek",
+    short_name: "Youvie",
+    description: "Tonton serial drama pendek per episode di Youvie.",
     lang: "id-ID",
     start_url: "/",
     scope: "/",

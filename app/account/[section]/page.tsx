@@ -5,13 +5,6 @@ const accountSections = [
   "reading",
   "favorites",
   "account-settings",
-  "creator-application",
-  "creator-profile",
-  "creator-guide",
-  "creator",
-  "komiku",
-  "terbitkan-komik",
-  "analitik-komik",
 ] as const satisfies readonly AccountSection[];
 
 export default async function AccountSectionPage({

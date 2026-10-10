@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import type { ReactNode } from "react";
-import { ArrowRight, ArrowUpRight, BarChart3, BookOpen, Bookmark, CircleHelp, Home, LayoutDashboard, Library, LogOut, Plus, Search, Settings2, Sparkles, Trash2, UserRound } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BarChart3, BookOpen, Bookmark, CircleHelp, Home, LayoutDashboard, Library, LogOut, Plus, Search, Settings2, Sparkles, Trash2, UserRound, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -59,6 +59,7 @@ export default function AccountContent({ section, children }: { section: Account
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [canManageVideos, setCanManageVideos] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
   const [creatorRequest, setCreatorRequest] = useState<CreatorRequest | null>(null);
@@ -136,15 +137,28 @@ export default function AccountContent({ section, children }: { section: Account
       if (profileError && !profileData) {
         console.error("Unable to load account profile:", profileError);
       } else if (profileData) {
-        const loadedProfile = { ...profileData, id: user.id, social_links: parseCreatorSocialLinks(profileData.social_links) };
+        const loadedProfile = {
+          ...profileData,
+          id: user.id,
+          role: profileData.role === "creator" ? "reader" : profileData.role,
+          social_links: parseCreatorSocialLinks(profileData.social_links),
+        };
+        if (profileData.role === "admin") {
+          setCanManageVideos(true);
+        } else {
+          const { data: canManage, error: accessError } = await supabase.rpc("can_manage_video_catalog");
+          if (accessError) {
+            console.error("Unable to check account video upload access:", accessError);
+          } else if (canManage === true) {
+            setCanManageVideos(true);
+          }
+        }
         setProfile(loadedProfile);
         setDisplayName(loadedProfile.display_name);
         setPublicHandle(loadedProfile.public_handle || createCreatorHandle(loadedProfile.display_name));
         setBio(loadedProfile.bio);
         setSocialLinks(loadedProfile.social_links);
       }
-      const { data: request } = await supabase.from("creator_requests").select("status").eq("user_id", user.id).maybeSingle();
-      setCreatorRequest(request);
       const { data: bookmarkRows, error: bookmarkLoadError } = await supabase
         .from("bookmarks")
         .select("created_at, comics(id, title, slug, genre, cover_key)")
@@ -422,20 +436,9 @@ export default function AccountContent({ section, children }: { section: Account
           <p className="account-nav-label">Pembaca</p>
           <Link className={`account-nav-link${section === "reading" ? " active" : ""}`} href="/account/reading" aria-current={section === "reading" ? "page" : undefined}><BookOpen size={18} /><span>Lanjut membaca</span></Link>
           <Link className={`account-nav-link${section === "favorites" ? " active" : ""}`} href="/account/favorites" aria-current={section === "favorites" ? "page" : undefined}><Bookmark size={18} /><span>Favorit</span></Link>
-          {profile?.role === "reader" && settings.feature_flags.creators && <Link className={`account-nav-link${section === "creator-application" ? " active" : ""}`} href="/account/creator-application" aria-current={section === "creator-application" ? "page" : undefined}><Sparkles size={18} /><span>Jadi kreator</span></Link>}
-          {profile?.role === "creator" && <>
-            <p className="account-nav-label">Kreator</p>
-            <Link className={`account-nav-link${section === "creator" ? " active" : ""}`} href="/account/creator" aria-current={section === "creator" ? "page" : undefined}><Sparkles size={18} /><span>Ruang Kreator</span></Link>
-            <Link className={`account-nav-link${section === "komiku" || section === "comic-editor" ? " active" : ""}`} href="/account/komiku" aria-current={section === "komiku" || section === "comic-editor" ? "page" : undefined}><Library size={18} /><span>Komikku</span></Link>
-            <Link className={`account-nav-link${section === "terbitkan-komik" ? " active" : ""}`} href="/account/terbitkan-komik" aria-current={section === "terbitkan-komik" ? "page" : undefined}><Plus size={18} /><span>Terbitkan komik</span></Link>
-            <Link className={`account-nav-link${section === "analitik-komik" ? " active" : ""}`} href="/account/analitik-komik" aria-current={section === "analitik-komik" ? "page" : undefined}><BarChart3 size={18} /><span>Analitik komik</span></Link>
-          </>}
           <p className="account-nav-label">Akun</p>
           <Link className={`account-nav-link${section === "account-settings" ? " active" : ""}`} href="/account/account-settings" aria-current={section === "account-settings" ? "page" : undefined}><Settings2 size={18} /><span>Pengaturan</span></Link>
-          {profile?.role === "creator" && <>
-            <Link className={`account-nav-link${section === "creator-profile" ? " active" : ""}`} href="/account/creator-profile" aria-current={section === "creator-profile" ? "page" : undefined}><UserRound size={18} /><span>Profil kreator</span></Link>
-            <Link className={`account-nav-link${section === "creator-guide" ? " active" : ""}`} href="/account/creator-guide" aria-current={section === "creator-guide" ? "page" : undefined}><CircleHelp size={18} /><span>Panduan</span></Link>
-          </>}
+          {canManageVideos && <Link className="account-nav-link" href="/admin/video-upload"><Video size={18} /><span>Upload video drama</span></Link>}
           {profile?.role === "admin" && <Link className="account-nav-link" href="/admin"><Settings2 size={18} /><span>Buka panel admin</span><ArrowUpRight size={15} /></Link>}
         </nav>
         <div className="account-sidebar-user">
@@ -446,7 +449,7 @@ export default function AccountContent({ section, children }: { section: Account
       </aside>
       <div className={`account-main${profile?.role === "creator" ? " account-main-creator" : ""}${section === "creator-profile" ? " account-profile-focus" : ""}${section === "creator-guide" ? " account-guide-focus" : ""}${section !== "overview" ? " account-subpage" : ""}${isCreatorArea(section) ? " account-creator-area" : ""}${section === "comic-editor" ? " account-comic-editor-area" : ""}`}>
       <div className="account-mobile-header"><BrandLogo showName /><button className="account-logout" onClick={handleLogout} disabled={loggingOut}><LogOut size={16} /> {loggingOut ? "Keluar..." : "Keluar"}</button></div>
-      {!isCreatorArea(section) && section !== "comic-editor" && section !== "analitik-komik" && <header className="account-header"><p className="eyebrow">{section === "overview" ? "Ruang Bacamu" : "Akun"}</p><h1>{section === "overview" ? `Hai, ${profile?.display_name || "Pembaca"}.` : section === "reading" ? "Lanjut membaca" : section === "favorites" ? "Favorit" : section === "account-settings" ? "Pengaturan" : section === "creator-application" ? "Jadi kreator" : section === "creator-profile" ? "Profil kreator" : "Panduan MU-Komik"}</h1>{section === "overview" && <><p className="account-email">{email}</p><p className="account-email">{membership.ready ? `Paket ${READER_MEMBERSHIP_TIERS.find((item) => item.value === membership.tier)?.label || "Free"}` : "Memuat paket..."}</p></>}</header>}
+      {!isCreatorArea(section) && section !== "comic-editor" && section !== "analitik-komik" && <header className="account-header"><p className="eyebrow">{section === "overview" ? "Ruang Bacamu" : "Akun"}</p><h1>{section === "overview" ? `Hai, ${profile?.display_name || "Pembaca"}.` : section === "reading" ? "Lanjut membaca" : section === "favorites" ? "Favorit" : section === "account-settings" ? "Pengaturan" : section === "creator-application" ? "Jadi kreator" : section === "creator-profile" ? "Profil kreator" : "Panduan Youvie"}</h1>{section === "overview" && <><p className="account-email">{email}</p><p className="account-email">{membership.ready ? `Paket ${READER_MEMBERSHIP_TIERS.find((item) => item.value === membership.tier)?.label || "Free"}` : "Memuat paket..."}</p></>}</header>}
       {section === "comic-editor" ? children : section === "analitik-komik" ? (
         profile?.role === "creator"
           ? <CreatorAnalytics />
@@ -646,62 +649,6 @@ export default function AccountContent({ section, children }: { section: Account
           )}
           {profile?.role === "admin" && <Link className="account-creator-link" href="/admin"><Settings2 size={16} /> Buka panel admin <ArrowUpRight size={15} /></Link>}
         </article>}
-        {section === "overview" && profile?.role === "reader" && settings.feature_flags.creators && (
-          <article className="account-panel account-creator-request-panel account-creator-request-teaser">
-            <div className="panel-heading"><div><p className="eyebrow">Punya cerita untuk dibagikan?</p><h2>Jadi kreator MU Komik</h2></div><Sparkles size={22} /></div>
-            <p>Kelola karya, bangun profil kreator, dan lihat analitik komikmu di Ruang Kreator.</p>
-            {creatorRequest?.status === "pending" && <span className="request-status request-pending">Pengajuan menunggu peninjauan</span>}
-            {creatorRequest?.status === "approved" && <span className="request-status request-approved">Pengajuan disetujui</span>}
-            <Link className="button button-dark account-creator-application-link" href="/account/creator-application">
-              {creatorRequest?.status === "rejected" ? "Perbarui pengajuan" : creatorRequest?.status === "pending" || creatorRequest?.status === "approved" ? "Lihat pengajuan" : "Lihat benefit dan ajukan"} <ArrowRight size={16} />
-            </Link>
-          </article>
-        )}
-        {section === "creator-application" && profile?.role === "reader" && settings.feature_flags.creators && (
-          <article className="account-panel account-creator-request-panel account-creator-application-panel">
-            <div className="panel-heading"><div><p className="eyebrow">Berkarya bersama MU Komik</p><h2>Benefit menjadi kreator</h2></div><Sparkles size={22} /></div>
-            <p className="account-creator-benefits-intro">Bangun kehadiranmu sebagai kreator dengan alat yang tersedia di MU Komik.</p>
-            <div className="account-creator-benefits" aria-label="Benefit menjadi kreator MU Komik">
-              <article>
-                <span><Library size={18} /></span>
-                <div><h3>Kelola karya</h3><p>Buat komik, terbitkan episode, dan kelola karya dari Ruang Kreator.</p></div>
-              </article>
-              <article>
-                <span><UserRound size={18} /></span>
-                <div><h3>Profil kreator publik</h3><p>Tampilkan identitas dan komik terbit melalui halaman profil kreator.</p></div>
-              </article>
-              <article>
-                <span><BarChart3 size={18} /></span>
-                <div><h3>Lihat analitik</h3><p>Pantau performa komik melalui analitik kreator yang tersedia.</p></div>
-              </article>
-              <article>
-                <span><Search size={18} /></span>
-                <div><h3>Berpeluang ditemukan</h3><p>Komik yang diterbitkan dapat muncul di katalog untuk dijelajahi pembaca.</p></div>
-              </article>
-            </div>
-            <p className="account-creator-benefits-note">Komik tetap melalui proses kurasi sebelum terbit. Jumlah pembaca dan penghasilan tidak dijamin.</p>
-            <div className="creator-request">
-              <p>{!settings.creator_applications_enabled ? "Pengajuan kreator sedang ditutup sementara. Silakan coba lagi nanti." : creatorRequest?.status === "rejected" ? "Pengajuanmu ditolak. Perbarui dan kirim kembali pengajuan." : "Ceritakan kepada admin komik yang ingin kamu terbitkan dan alasan karyamu layak hadir di sini."}</p>
-              {creatorRequest?.status === "pending" || creatorRequest?.status === "approved"
-                ? <span className={`request-status request-${creatorRequest.status}`}>{requestStatusLabels[creatorRequest.status]}</span>
-                : settings.creator_applications_enabled ? <>
-                    <textarea className="creator-note" value={applicationNote} onChange={(event) => setApplicationNote(event.target.value)} placeholder="Ceritakan pengajuan kreatormu..." maxLength={1000} rows={4} />
-                    <input className="creator-link-input" type="url" value={portfolioUrl} onChange={(event) => setPortfolioUrl(event.target.value)} placeholder="Portofolio komik (https://...)" />
-                    <input className="creator-link-input" type="url" value={instagramUrl} onChange={(event) => setInstagramUrl(event.target.value)} placeholder="Instagram (https://instagram.com/...)" />
-                    <input className="creator-link-input" type="url" value={otherUrl} onChange={(event) => setOtherUrl(event.target.value)} placeholder="Situs web atau media sosial lain (opsional)" />
-                    <button className="button button-dark request-button" onClick={handleCreatorRequest} disabled={requestingCreator || !applicationNote.trim()}>{requestingCreator ? "Mengirim..." : creatorRequest?.status === "rejected" ? "Kirim ulang pengajuan" : "Ajukan akses kreator"} <ArrowRight size={16} /></button>
-                  </> : null}
-              {requestMessage && <small role="status">{requestMessage}</small>}
-            </div>
-          </article>
-        )}
-        {section === "creator-application" && (profile?.role !== "reader" || !settings.feature_flags.creators) && (
-          <section className="account-panel account-route-unavailable" role="status">
-            <h2>Pengajuan kreator tidak tersedia.</h2>
-            <p>Halaman ini hanya tersedia untuk akun pembaca saat pengajuan kreator dibuka.</p>
-            <Link className="button button-dark" href="/account">Kembali ke ringkasan</Link>
-          </section>
-        )}
       </section>}
       {(section === "creator-profile" || section === "creator-guide") && profile?.role !== "creator" && (
         <section className="account-panel account-route-unavailable" role="status">
@@ -715,7 +662,7 @@ export default function AccountContent({ section, children }: { section: Account
           <div className="panel-heading">
             <div>
               <p className="eyebrow">Panduan Kreator</p>
-              <h2 id="creator-faq-title">Panduan MU-Komik</h2>
+              <h2 id="creator-faq-title">Panduan Youvie</h2>
             </div>
             <Sparkles size={22} />
           </div>
@@ -802,14 +749,14 @@ export default function AccountContent({ section, children }: { section: Account
           ) : activeCreatorGuideTab === "rules" ? (
             <div id="creator-rules-panel" className="account-creator-tab-panel" role="tabpanel" aria-labelledby="creator-rules-tab" tabIndex={0}>
               <details>
-                <summary>Apa aturan publikasi komik di MU Komik?</summary>
-                <p>Komik di MU Komik gratis untuk dibaca. Cantumkan kredit kreator yang terlibat. Jika komik merupakan adaptasi, isi judul dan pencipta karya sumbernya.</p>
+                <summary>Apa aturan publikasi komik di Youvie?</summary>
+                <p>Komik di Youvie gratis untuk dibaca. Cantumkan kredit kreator yang terlibat. Jika komik merupakan adaptasi, isi judul dan pencipta karya sumbernya.</p>
               </details>
               <details>
                 <summary>Informasi apa yang perlu diisi dengan benar?</summary>
                 <p>Pilih target pembaca dan teknik produksi yang sesuai dengan karyamu, termasuk jika karya dibantu atau dibuat dengan AI.</p>
               </details>
-              <Link className="account-manifesto-link" href="/manifesto">Baca Manifesto AI MU-KOMIK <ArrowUpRight size={15} /></Link>
+              <Link className="account-manifesto-link" href="/manifesto">Baca Manifesto AI Youvie <ArrowUpRight size={15} /></Link>
             </div>
           ) : (
             <div id="creator-images-panel" className="account-creator-tab-panel account-creator-image-guide" role="tabpanel" aria-labelledby="creator-images-tab" tabIndex={0}>

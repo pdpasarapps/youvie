@@ -432,12 +432,12 @@ export default function PushAdsPage() {
         if (cleanupError) console.error("Unable to clean up advertiser creatives after request failure:", cleanupError);
       }
       setErrorMessage(isAdRequestSchemaError(error.code)
-        ? "Skema pengajuan iklan belum lengkap. Admin MU Komik perlu menjalankan ulang supabase/ad-requests.sql di Supabase SQL Editor."
+        ? "Skema pengajuan iklan belum lengkap. Admin Youvie perlu menjalankan ulang supabase/ad-requests.sql di Supabase SQL Editor."
         : "Pengajuan belum berhasil dikirim. Periksa data dan coba lagi.");
       return;
     }
     setRequests((current) => [data as AdRequest, ...current]);
-    setSuccessMessage("Pengajuan terkirim. Tim MU Komik akan meninjau dan menghubungimu melalui email.");
+    setSuccessMessage("Pengajuan terkirim. Tim Youvie akan meninjau dan menghubungimu melalui email.");
     setCampaignTitle("");
     setDescription("");
     setDestinationUrl("");
@@ -456,17 +456,17 @@ export default function PushAdsPage() {
   return (
     <main className="push-ads-page">
       <header className="push-ads-header">
-        <Link href="/" aria-label="MU Komik beranda"><BrandLogo linked={false} showName /></Link>
+        <Link href="/" aria-label="Youvie beranda"><BrandLogo linked={false} showName /></Link>
         <Link className="push-ads-back" href="/"><ArrowLeft size={16} /> Beranda</Link>
       </header>
 
       <section className="push-ads-hero">
-        <p className="eyebrow"><Megaphone size={15} /> IKLAN DI MU KOMIK</p>
+        <p className="eyebrow"><Megaphone size={15} /> IKLAN DI Youvie</p>
         <h1>Jangkau pembaca<br /><em>cerita Indonesia.</em></h1>
-        <p>Ajukan kebutuhan iklan untuk komunitas pembaca MU Komik. Tim kami akan meninjau materi, lalu menghubungimu untuk membahas harga dan jadwal.</p>
+        <p>Ajukan kebutuhan iklan untuk komunitas pembaca Youvie. Tim kami akan meninjau materi, lalu menghubungimu untuk membahas harga dan jadwal.</p>
         <div className="push-ads-process">
           <span><b>01</b> Kirim kebutuhan iklan</span>
-          <span><b>02</b> Ditinjau tim MU Komik</span>
+          <span><b>02</b> Ditinjau tim Youvie</span>
           <span><b>03</b> Diskusikan penayangan</span>
         </div>
         <a className="push-ads-hero-action" href="#ad-request">Mulai pengajuan <ArrowRight size={16} /></a>
@@ -482,7 +482,7 @@ export default function PushAdsPage() {
           {loading ? <p className="push-ads-message" role="status">Memeriksa akun...</p>
             : !userId ? <div className="push-ads-login-card">
                 <h3>Masuk untuk mengajukan iklan</h3>
-                <p>Pengajuan dan status tinjauan akan tersimpan di akun MU Komik-mu.</p>
+                <p>Pengajuan dan status tinjauan akan tersimpan di akun Youvie-mu.</p>
                 <Link className="button button-dark" href="/login">Masuk atau buat akun <ArrowRight size={16} /></Link>
               </div>
               : !requestTableReady ? <div className="push-ads-login-card" role={errorMessage.includes("belum aktif") ? "status" : "alert"}>
@@ -557,7 +557,7 @@ export default function PushAdsPage() {
                 </section>
 
                 <section className="push-ads-form-section" aria-labelledby="push-ads-contact-heading">
-                  <div className="push-ads-form-section-heading"><span>04</span><div><h3 id="push-ads-contact-heading">Kontak pengiklan</h3><p>Gunakan kontak aktif agar tim MU Komik dapat menindaklanjuti pengajuan.</p></div></div>
+                  <div className="push-ads-form-section-heading"><span>04</span><div><h3 id="push-ads-contact-heading">Kontak pengiklan</h3><p>Gunakan kontak aktif agar tim Youvie dapat menindaklanjuti pengajuan.</p></div></div>
                   <div className="push-ads-field-grid">
                     <label className="push-ads-field">
                       <span>Nama bisnis atau pengiklan</span>
@@ -617,7 +617,7 @@ export default function PushAdsPage() {
         </aside>
       </section>
 
-      <footer className="push-ads-footer"><BrandLogo linked={false} /><span>© 2026 MU Komik</span></footer>
+      <footer className="push-ads-footer"><BrandLogo linked={false} /><span>© 2026 Youvie</span></footer>
       {creativeCrop && <ImageCropDialog
         file={creativeCrop.file}
         title={`Crop materi iklan · ${creativeDevices.find((item) => item.value === creativeCrop.device)?.label ?? creativeCrop.device}`}

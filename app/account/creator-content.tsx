@@ -279,7 +279,7 @@ export default function CreatorContent({ area }: { area: CreatorArea }) {
           {form.language === "other" && <label>Nama bahasa<input required maxLength={80} value={form.otherLanguage} onChange={(event) => setForm({ ...form, otherLanguage: event.target.value })} placeholder="Contoh: Bahasa Jawa" /></label>}
           <label>Asal karya<select value={form.originType} onChange={(event) => setForm({ ...form, originType: event.target.value })}>{ORIGIN_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {form.originType === "adaptation" && <label>Sumber adaptasi<input required maxLength={500} value={form.sourceInfo} onChange={(event) => setForm({ ...form, sourceInfo: event.target.value })} placeholder="Judul dan pencipta karya sumber" /></label>}
-          <p className="comic-form-note">Semua komik di mu-komik gratis untuk dibaca.</p>
+          <p className="comic-form-note">Semua komik di Youvie gratis untuk dibaca.</p>
           <button className="button button-dark" type="submit" disabled={saving || (!isAdmin && comics.length >= settings.max_comics_per_creator)}>{saving ? <><LoaderCircle className="spin" size={16} /> Menyimpan...</> : <>Buat komik <ArrowUpRight size={16} /></>}</button>
         </form>
       )}

@@ -22,7 +22,7 @@ export default function PwaSupport() {
       || ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
     if (process.env.NODE_ENV === "production" && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((error: unknown) => {
-        console.error("Unable to register the mu-komik service worker:", error);
+        console.error("Unable to register the Youvie service worker:", error);
       });
     }
 
@@ -77,9 +77,9 @@ export default function PwaSupport() {
   return (
     <>
       {!installInstructions ? (
-        <aside className="pwa-install-card" aria-label="Pasang aplikasi mu-komik">
-          <Image className="pwa-install-logo" src="/logo_mukomik.jpg" alt="" width={42} height={42} />
-          <div className="pwa-install-copy"><strong>Baca lebih nyaman</strong><span>Pasang mu-komik di perangkatmu.</span></div>
+        <aside className="pwa-install-card" aria-label="Pasang aplikasi Youvie">
+          <Image className="pwa-install-logo" src="/pwa/icon.svg" alt="" width={42} height={42} />
+          <div className="pwa-install-copy"><strong>Baca lebih nyaman</strong><span>Pasang Youvie di perangkatmu.</span></div>
           <button onClick={install}><Download size={16} /> Pasang</button>
           <button className="pwa-install-dismiss" aria-label="Tutup ajakan pemasangan" onClick={() => { setInstallPrompt(null); setIsIosInstallable(false); setIsAndroidInstallable(false); }}><X size={17} /></button>
         </aside>
@@ -87,17 +87,17 @@ export default function PwaSupport() {
         <div className="pwa-install-backdrop" role="presentation" onClick={() => setInstallInstructions(null)}>
           <section className="pwa-install-dialog" role="dialog" aria-modal="true" aria-labelledby="pwa-install-title" onClick={(event) => event.stopPropagation()}>
             <button className="pwa-install-dialog-close" onClick={() => setInstallInstructions(null)} aria-label="Tutup petunjuk"><X size={19} /></button>
-            <Image className="pwa-install-dialog-logo" src="/logo_mukomik.jpg" alt="Logo mu-komik" width={72} height={72} />
-            <h2 id="pwa-install-title">{installInstructions === "ios" ? "Pasang mu-komik" : installInstructions === "android-manual" ? "Pasang lewat menu Chrome" : installInstructions === "android-pending" ? "Permintaan instalasi diterima" : "Chrome melaporkan instalasi selesai"}</h2>
+            <Image className="pwa-install-dialog-logo" src="/pwa/icon.svg" alt="Logo Youvie" width={72} height={72} />
+            <h2 id="pwa-install-title">{installInstructions === "ios" ? "Pasang Youvie" : installInstructions === "android-manual" ? "Pasang lewat menu Chrome" : installInstructions === "android-pending" ? "Permintaan instalasi diterima" : "Chrome melaporkan instalasi selesai"}</h2>
             {installInstructions === "android" ? (
               <>
                 <p>Pesan ini berasal dari Chrome; situs tidak dapat memastikan ikon sudah ditambahkan ke launcher.</p>
-                <ol><li>Cari <strong>mu-komik</strong> di daftar aplikasi atau Setelan &gt; Aplikasi &gt; Kelola aplikasi.</li><li>Jika aplikasinya ada, tekan lama ikonnya untuk menambahkannya ke layar utama. Periksa juga pengaturan launcher atau aplikasi tersembunyi.</li><li>Jika tidak terdaftar, pastikan Chrome diperbarui lalu coba instal ulang dari menu Chrome <strong>⋮</strong>.</li></ol>
+                <ol><li>Cari <strong>Youvie</strong> di daftar aplikasi atau Setelan &gt; Aplikasi &gt; Kelola aplikasi.</li><li>Jika aplikasinya ada, tekan lama ikonnya untuk menambahkannya ke layar utama. Periksa juga pengaturan launcher atau aplikasi tersembunyi.</li><li>Jika tidak terdaftar, pastikan Chrome diperbarui lalu coba instal ulang dari menu Chrome <strong>⋮</strong>.</li></ol>
               </>
             ) : installInstructions === "android-pending" ? (
               <>
                 <p>Chrome menerima permintaan pemasangan, tetapi belum mengonfirmasi bahwa aplikasi selesai dipasang.</p>
-                <ol><li>Tunggu beberapa saat, lalu cari <strong>mu-komik</strong> di daftar aplikasi.</li><li>Jika tidak ditemukan, tutup Chrome dan coba lagi melalui menu <strong>⋮ &gt; Instal aplikasi</strong>.</li></ol>
+                <ol><li>Tunggu beberapa saat, lalu cari <strong>Youvie</strong> di daftar aplikasi.</li><li>Jika tidak ditemukan, tutup Chrome dan coba lagi melalui menu <strong>⋮ &gt; Instal aplikasi</strong>.</li></ol>
               </>
             ) : installInstructions === "android-manual" ? (
               <>
@@ -106,7 +106,7 @@ export default function PwaSupport() {
               </>
             ) : installInstructions === "ios" ? (
               <>
-                <p>Untuk membaca seperti aplikasi, tambahkan mu-komik ke Layar Utama:</p>
+                <p>Untuk membaca seperti aplikasi, tambahkan Youvie ke Layar Utama:</p>
                 <ol><li>Ketuk tombol <Share size={15} aria-label="Bagikan" /> <strong>Bagikan</strong> di Safari.</li><li>Pilih <strong>Tambahkan ke Layar Utama</strong>, lalu ketuk <strong>Tambah</strong>.</li></ol>
               </>
             ) : null}

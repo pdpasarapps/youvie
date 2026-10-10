@@ -9,7 +9,6 @@ const PRECACHE_URLS = [
   "/pwa/icon-192-maskable.png",
   "/pwa/icon-512-maskable.png",
   "/pwa/apple-touch-icon.png",
-  "/favicon.ico",
 ];
 
 self.addEventListener("install", (event) => {
@@ -20,7 +19,7 @@ self.addEventListener("install", (event) => {
         const results = await Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url)));
         results.forEach((result, index) => {
           if (result.status === "rejected") {
-            console.error("Unable to precache mu-komik PWA asset:", {
+            console.error("Unable to precache Youvie PWA asset:", {
               url: PRECACHE_URLS[index],
               error: result.reason,
             });

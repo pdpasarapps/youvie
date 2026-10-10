@@ -806,7 +806,7 @@ export default function CreatorComicPage() {
           {comicForm.language === "other" && <label>Nama bahasa<input required maxLength={80} value={comicForm.otherLanguage} onChange={(event) => setComicForm({ ...comicForm, otherLanguage: event.target.value })} placeholder="Contoh: Bahasa Jawa" /></label>}
           <label>Asal karya<select value={comicForm.originType} onChange={(event) => setComicForm({ ...comicForm, originType: event.target.value })}>{ORIGIN_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
           {comicForm.originType === "adaptation" && <label>Sumber adaptasi<input required maxLength={500} value={comicForm.sourceInfo} onChange={(event) => setComicForm({ ...comicForm, sourceInfo: event.target.value })} placeholder="Judul dan pencipta karya sumber" /></label>}
-          <p className="comic-form-note">Semua komik di mu-komik gratis untuk dibaca.</p>
+          <p className="comic-form-note">Semua komik di Youvie gratis untuk dibaca.</p>
           <label className="cover-upload-field">Sampul komik
             <input type="file" accept={settings.allowed_image_types.join(",")} onChange={(event) => { startCoverCrop(event.target.files?.[0] ?? null); event.currentTarget.value = ""; }} />
             <span>{coverFile ? `Sampul siap: ${coverFile.name}` : comic.cover_key ? "Sampul saat ini tetap digunakan jika kamu tidak memilih berkas baru." : "Belum ada sampul."} Rasio crop 3:4 · hasil maksimal 1200 × 1600 px dan {settings.max_upload_size_mb} MB.</span>

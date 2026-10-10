@@ -21,22 +21,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return entries;
   }
 
-  const { data: creators, error: creatorError } = await supabase
-    .from("profiles")
-    .select("public_handle")
-    .eq("role", "creator")
-    .eq("public_profile", true)
-    .not("public_handle", "is", null);
-  if (creatorError) {
-    console.error("Unable to load public creator profiles for sitemap:", creatorError);
-  } else {
-    entries.push(...(creators ?? []).flatMap((creator) => creator.public_handle ? [{
-      url: new URL(`/kreator/${encodeURIComponent(creator.public_handle)}`, siteUrl).toString(),
-      changeFrequency: "weekly" as const,
-      priority: 0.5,
-    }] : []));
-  }
-
   const { data: comics, error } = await supabase
     .from("comics")
     .select("id, slug, updated_at, created_at")

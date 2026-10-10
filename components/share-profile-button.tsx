@@ -8,7 +8,7 @@ export default function ShareProfileButton({ creatorName }: { creatorName: strin
   const [shareUrl, setShareUrl] = useState("");
   const [message, setMessage] = useState("");
   const shareUrlRef = useRef<HTMLTextAreaElement>(null);
-  const shareText = `Lihat profil kreator ${creatorName} di MU Komik`;
+  const shareText = `Lihat profil kreator ${creatorName} di Youvie`;
 
   const shareProfile = async () => {
     setMessage("");
@@ -17,7 +17,7 @@ export default function ShareProfileButton({ creatorName }: { creatorName: strin
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Profil ${creatorName} — MU Komik`,
+          title: `Profil ${creatorName} — Youvie`,
           text: shareText,
           url,
         });
@@ -70,7 +70,7 @@ export default function ShareProfileButton({ creatorName }: { creatorName: strin
             </button>
             <p className="reader-section-kicker">BAGIKAN PROFIL</p>
             <h2 id="creator-share-title">Bagikan profil kreator</h2>
-            <p className="reader-share-description">{creatorName} · MU Komik</p>
+            <p className="reader-share-description">{creatorName} · Youvie</p>
             <textarea
               ref={shareUrlRef}
               className="reader-share-url"

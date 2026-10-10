@@ -49,14 +49,14 @@ export async function generateMetadata({
     ? `${imageBaseUrl.replace(/\/$/, "")}/${comic.cover_key}`
     : undefined;
   return {
-    title: `${title} | MU Komik`,
+    title: `${title} | Youvie`,
     description,
     alternates: { canonical: canonicalUrl },
     openGraph: {
       type: "article",
       locale: "id_ID",
-      siteName: "mu-komik",
-      title: `${title} | MU Komik`,
+      siteName: "Youvie",
+      title: `${title} | Youvie`,
       description,
       url: canonicalUrl,
       ...(image ? { images: [{ url: image, alt: `Sampul komik ${comic.title}` }] } : {}),

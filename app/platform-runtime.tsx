@@ -29,18 +29,9 @@ export default function PlatformRuntime({
   const adminOrLoginRoute = pathname === "/login" || pathname === "/admin" || pathname.startsWith("/admin/");
   const gatedFeature = pathname.startsWith("/comic/")
     ? !settings.feature_flags.reading
-    : (pathname.startsWith("/kreator/") || pathname.startsWith("/profile/") || [
-        "/account/creator",
-        "/account/komiku",
-        "/account/terbitkan-komik",
-        "/account/analitik-komik",
-        "/account/creator-profile",
-        "/account/creator-guide",
-      ].some((route) => pathname === route || pathname.startsWith(`${route}/`)))
-      ? !settings.feature_flags.creators
-      : pathname === "/account/favorites"
-        ? !settings.feature_flags.favorites
-        : false;
+    : pathname === "/account/favorites"
+      ? !settings.feature_flags.favorites
+      : false;
 
   let content = children;
   if (settings.maintenance_enabled && !adminOrLoginRoute) {
@@ -54,7 +45,7 @@ export default function PlatformRuntime({
           <Image
             className="reader-not-found-illustration platform-maintenance-illustration"
             src="/pemelihraan.png"
-            alt="Kreator MU-Komik sedang memperbaiki platform"
+            alt="Kreator Youvie sedang memperbaiki platform"
             width={1536}
             height={1024}
             priority
@@ -72,7 +63,7 @@ export default function PlatformRuntime({
       <main className="platform-state-page">
         <p className="eyebrow">Fitur sementara dijeda</p>
         <h1>Fitur ini sedang tidak tersedia.</h1>
-        <p>Tim MU-Komik sedang menyiapkan kembali fitur ini. Silakan coba lagi nanti.</p>
+        <p>Tim Youvie sedang menyiapkan kembali fitur ini. Silakan coba lagi nanti.</p>
       </main>
     );
   } else if (settings.announcement_enabled && settings.announcement_message) {

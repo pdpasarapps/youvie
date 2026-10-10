@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState } from "react";
-import { ArrowLeft, Archive, BookOpen, ChartNoAxesColumn, Check, ClipboardList, Eye, Image as ImageIcon, LayoutDashboard, LoaderCircle, List, Megaphone, Search, Settings2, ShieldCheck, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, Archive, BookOpen, ChartNoAxesColumn, Check, ClipboardList, Eye, Image as ImageIcon, LayoutDashboard, LoaderCircle, List, Megaphone, Search, Settings2, ShieldCheck, UserRound, Users, Video, X } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -16,41 +16,36 @@ import { defaultPlatformSettings, type PlatformSettings } from "@/lib/platform-s
 import { usePlatformSettings } from "../platform-runtime";
 import { READER_MEMBERSHIP_TIERS, type ReaderMembershipTier } from "@/lib/reader-membership";
 
-type RequestStatus = "pending" | "approved" | "rejected";
-type CreatorRequest = { id: string; user_id: string; note: string; portfolio_url: string | null; instagram_url: string | null; other_url: string | null; status: RequestStatus; created_at: string; applicant: string; role: string };
 type ComicReview = { id: string; title: string; slug: string; synopsis: string; contributor: string; created_at: string; creator_id: string; creator: string };
 type AdminUser = { id: string; display_name: string; role: "reader" | "creator" | "admin"; membershipTier: ReaderMembershipTier; created_at: string };
 type AdminComic = { id: string; title: string; slug: string; synopsis: string; contributor: string; genre: string; cover_key: string | null; share_preview_key: string | null; status: "draft" | "pending_review" | "published" | "archived"; created_at: string; creator_id: string; creator: string };
 type SettingsAuditEntry = { id: number; changed_by: string | null; changed_at: string; previous_values: Record<string, unknown>; new_values: Record<string, unknown> };
-type AdminSection = "overview" | "analytics" | "comic-review" | "creator-requests" | "users" | "comics" | "share-previews" | "ad-requests" | "ads-management" | "ads-list" | "sponsor-campaigns" | "ad-slots" | "homepage-promos" | "platform-settings";
+type AdminSection = "overview" | "analytics" | "comic-review" | "users" | "comics" | "share-previews" | "ad-requests" | "ads-management" | "ads-list" | "sponsor-campaigns" | "ad-slots" | "homepage-promos" | "platform-settings";
 
 const supabase = createClient();
 const adminSections: Record<AdminSection, { label: string; description: string }> = {
-  overview: { label: "Dasbor admin", description: "Kelola akun, komik, kurasi, dan pengajuan kreator mu-komik." },
+  overview: { label: "Dasbor admin", description: "Kelola akun, komik, kurasi, dan pengajuan kreator Youvie." },
   analytics: { label: "Analitik", description: "Pantau aktivitas membaca dan komik yang paling banyak dibaca." },
   "comic-review": { label: "Kurasi komik", description: "Tinjau komik yang menunggu persetujuan untuk diterbitkan." },
-  "creator-requests": { label: "Pengajuan kreator", description: "Tinjau permohonan akses kreator." },
   users: { label: "Manajemen pengguna", description: "Kelola akun dan peran pengguna." },
   comics: { label: "Katalog komik", description: "Cari komik dan kelola status publikasinya." },
   "share-previews": { label: "Pratinjau berbagi komik", description: "Buat gambar pratinjau statis di R2 agar dapat ditampilkan di WhatsApp dan platform sosial." },
   "ad-requests": { label: "Pengajuan iklan", description: "Tinjau kebutuhan kampanye iklan dari calon pengiklan." },
   "ads-management": { label: "Kampanye sponsor", description: "Kelola kampanye, materi, target, dan periode tayang sponsor." },
-  "ads-list": { label: "Slot iklan", description: "Kelola inventaris penempatan iklan di MU-Komik." },
+  "ads-list": { label: "Slot iklan", description: "Kelola inventaris penempatan iklan di Youvie." },
   "sponsor-campaigns": { label: "Kampanye sponsor", description: "Kelola kampanye, materi, target, dan periode tayang sponsor." },
-  "ad-slots": { label: "Slot iklan", description: "Kelola inventaris penempatan iklan di MU-Komik." },
+  "ad-slots": { label: "Slot iklan", description: "Kelola inventaris penempatan iklan di Youvie." },
   "homepage-promos": { label: "Hero & promo beranda", description: "Kelola slide hero, gambar responsif, tautan, urutan, dan jadwal promo beranda." },
-  "platform-settings": { label: "Pengaturan platform", description: "Atur status operasional dan fitur yang tersedia di MU-Komik." },
+  "platform-settings": { label: "Pengaturan platform", description: "Atur status operasional dan fitur yang tersedia di Youvie." },
 };
-const roleLabels = { reader: "Pembaca", creator: "Kreator", admin: "Admin" };
+const roleLabels = { reader: "Pembaca", creator: "Pembaca", admin: "Admin" };
 const comicStatusLabels = { draft: "Draf", pending_review: "Menunggu kurasi", published: "Terbit", archived: "Diarsipkan" };
-const requestStatusLabels = { pending: "Menunggu", approved: "Disetujui", rejected: "Ditolak" };
 const platformSettingLabels: Record<string, string> = {
   maintenance_enabled: "Mode pemeliharaan",
   maintenance_message: "Pesan pemeliharaan",
   announcement_enabled: "Banner pengumuman",
   announcement_message: "Isi pengumuman",
   require_comic_review: "Wajib kurasi sebelum terbit",
-  creator_applications_enabled: "Pengajuan kreator",
   max_comics_per_creator: "Batas komik per kreator",
   max_upload_size_mb: "Ukuran file maksimum",
   max_pages_per_chapter: "Batas halaman per bab",
@@ -66,7 +61,6 @@ export default function AdminPage() {
   const section = requestedSection && requestedSection in adminSections
     ? requestedSection as AdminSection
     : "overview";
-  const [requests, setRequests] = useState<CreatorRequest[]>([]);
   const [comicReviews, setComicReviews] = useState<ComicReview[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [comics, setComics] = useState<AdminComic[]>([]);
@@ -78,7 +72,6 @@ export default function AdminPage() {
   const [comicSearch, setComicSearch] = useState("");
   const [comicStatusFilter, setComicStatusFilter] = useState("all");
   const [message, setMessage] = useState("");
-  const [selectedRequest, setSelectedRequest] = useState<CreatorRequest | null>(null);
   const [generatingSharePreviews, setGeneratingSharePreviews] = useState(false);
   const [sharePreviewProgress, setSharePreviewProgress] = useState("");
   const [platformSettings, setPlatformSettings] = useState<PlatformSettings>(defaultPlatformSettings);
@@ -100,13 +93,12 @@ export default function AdminPage() {
       return;
     }
     setAdminUserId(userData.user.id);
-    const [requestResult, profileResult, membershipResult, comicResult] = await Promise.all([
-      supabase.from("creator_requests").select("id, user_id, note, portfolio_url, instagram_url, other_url, status, created_at").eq("status", "pending").order("created_at", { ascending: false }),
+    const [profileResult, membershipResult, comicResult] = await Promise.all([
       supabase.from("profiles").select("id, display_name, role, created_at").order("created_at", { ascending: false }),
       supabase.from("reader_memberships").select("user_id, tier"),
       supabase.from("comics").select("id, title, slug, synopsis, contributor, genre, cover_key, share_preview_key, status, created_at, creator_id").order("created_at", { ascending: false }),
     ]);
-    const loadErrors = [requestResult.error, profileResult.error, membershipResult.error, comicResult.error].filter(Boolean);
+    const loadErrors = [profileResult.error, membershipResult.error, comicResult.error].filter(Boolean);
     if (loadErrors.length) {
       const missingMembershipTable = membershipResult.error?.code === "42P01" || membershipResult.error?.code === "PGRST205";
       setMessage(missingMembershipTable
@@ -125,11 +117,6 @@ export default function AdminPage() {
     })) as AdminUser[];
     const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
     setUsers(profiles);
-    setRequests((requestResult.data ?? []).map((request) => ({
-      ...request,
-      applicant: profileMap.get(request.user_id)?.display_name || "Pengguna tanpa nama",
-      role: profileMap.get(request.user_id)?.role || "reader",
-    })));
     const comicData = (comicResult.data ?? []) as Omit<AdminComic, "creator">[];
     setComics(comicData.map((comic) => ({
       ...comic,
@@ -313,25 +300,7 @@ export default function AdminPage() {
     setSavingPlatformSettings(false);
   };
 
-  const reviewRequest = async (request: CreatorRequest, status: "approved" | "rejected") => {
-    setActionId(request.id);
-    setMessage("");
-    const { error } = await supabase.rpc("review_creator_request", { p_request_id: request.id, p_decision: status });
-    if (error) {
-      console.error("Unable to review creator request:", error);
-      setMessage("Pengajuan kreator gagal diperbarui. Periksa koneksi dan coba lagi.");
-      setActionId(null);
-      return;
-    }
-    setRequests((current) => current.map((item) => item.id === request.id ? { ...item, status, role: status === "approved" ? "creator" : item.role } : item));
-    if (status === "approved") {
-      setUsers((current) => current.map((user) => user.id === request.user_id ? { ...user, role: "creator" } : user));
-    }
-    setMessage(status === "approved" ? "Akses kreator disetujui." : "Pengajuan akses kreator ditolak.");
-    setActionId(null);
-  };
-
-  const updateUserRole = async (user: AdminUser, role: "reader" | "creator") => {
+  const updateUserRole = async (user: AdminUser, role: "reader") => {
     if (user.id === adminUserId) {
       setMessage("Peran akun admin yang sedang digunakan tidak dapat diubah dari sini.");
       return;
@@ -424,7 +393,6 @@ export default function AdminPage() {
     const matchesSearch = `${comic.title} ${comic.creator} ${comic.genre}`.toLowerCase().includes(comicSearch.toLowerCase());
     return matchesSearch && (comicStatusFilter === "all" || comic.status === comicStatusFilter);
   });
-  const pendingRequests = requests.filter((request) => request.status === "pending").length;
   const publishedComics = comics.filter((comic) => comic.status === "published").length;
   const generatedSharePreviews = comics.filter((comic) => comic.status === "published" && comic.share_preview_key);
 
@@ -445,10 +413,10 @@ export default function AdminPage() {
             <div className="admin-sidebar-group" aria-label="Moderasi">
               <p className="admin-sidebar-group-label">Moderasi</p>
               <Link href="/admin/comic-review" aria-current={section === "comic-review" ? "page" : undefined}><BookOpen size={18} /><span>Kurasi komik</span>{comicReviews.length > 0 && <small>{comicReviews.length}</small>}</Link>
-              <Link href="/admin/creator-requests" aria-current={section === "creator-requests" ? "page" : undefined}><ClipboardList size={18} /><span>Pengajuan kreator</span>{requests.length > 0 && <small>{requests.length}</small>}</Link>
             </div>
             <div className="admin-sidebar-group" aria-label="Kelola konten">
               <p className="admin-sidebar-group-label">Kelola konten</p>
+              <Link href="/admin/video-upload"><Video size={18} /><span>Upload video drama</span></Link>
               <Link href="/admin/users" aria-current={section === "users" ? "page" : undefined}><Users size={18} /><span>Pengguna</span></Link>
               <Link href="/admin/comics" aria-current={section === "comics" ? "page" : undefined}><BookOpen size={18} /><span>Katalog komik</span></Link>
               <Link href="/admin/share-previews" aria-current={section === "share-previews" ? "page" : undefined}><ImageIcon size={18} /><span>Pratinjau berbagi</span></Link>
@@ -485,7 +453,7 @@ export default function AdminPage() {
           <article className="admin-stat"><span>Total pengguna</span><strong>{users.length}</strong><UserRound size={20} /></article>
           <article className="admin-stat"><span>Total komik</span><strong>{comics.length}</strong><BookOpen size={20} /></article>
           <article className="admin-stat"><span>Komik terbit</span><strong>{publishedComics}</strong><Eye size={20} /></article>
-          <article className="admin-stat"><span>Perlu ditinjau</span><strong>{comicReviews.length + pendingRequests}</strong><ShieldCheck size={20} /></article>
+          <article className="admin-stat"><span>Perlu ditinjau</span><strong>{comicReviews.length}</strong><ShieldCheck size={20} /></article>
         </section>}
         {(section === "ads-management" || section === "sponsor-campaigns") && <section className="admin-management-section">
           <div className="admin-section-heading">
@@ -530,7 +498,6 @@ export default function AdminPage() {
                 {([
                   ["reading", "Membaca komik"],
                   ["search", "Pencarian komik"],
-                  ["creators", "Area kreator"],
                   ["comments", "Komentar (siap untuk fitur mendatang)"],
                   ["favorites", "Favorit komik"],
                 ] as const).map(([feature, label]) => (
@@ -539,12 +506,11 @@ export default function AdminPage() {
               </div>
             </article>
             <article className="admin-setting-card">
-              <div className="admin-setting-heading"><div><h3>Moderasi & publikasi</h3><p>Atur proses peninjauan komik dan penerimaan kreator baru.</p></div></div>
+              <div className="admin-setting-heading"><div><h3>Moderasi & publikasi</h3><p>Atur proses peninjauan konten.</p></div></div>
               <div className="admin-setting-checks">
                 <label className="admin-feature-toggle"><span>Wajib kurasi admin sebelum komik tayang</span><input type="checkbox" checked={platformSettings.require_comic_review} onChange={(event) => setPlatformSettings((current) => ({ ...current, require_comic_review: event.target.checked }))} /></label>
-                <label className="admin-feature-toggle"><span>Terima pengajuan kreator baru</span><input type="checkbox" checked={platformSettings.creator_applications_enabled} onChange={(event) => setPlatformSettings((current) => ({ ...current, creator_applications_enabled: event.target.checked }))} /></label>
               </div>
-              <p className="admin-setting-note">{platformSettings.require_comic_review ? "Kreator mengajukan komik untuk ditinjau admin sebelum tayang." : "Kreator dapat menerbitkan komik secara langsung."}</p>
+              <p className="admin-setting-note">{platformSettings.require_comic_review ? "Konten yang dikelola platform harus disetujui admin sebelum tayang." : "Konten dapat diterbitkan tanpa kurasi tambahan."}</p>
             </article>
             <article className="admin-setting-card">
               <div className="admin-setting-heading"><div><h3>Batas unggahan</h3><p>Batasi jumlah karya dan ukuran konten untuk mengendalikan kapasitas serta biaya penyimpanan.</p></div></div>
@@ -659,31 +625,6 @@ export default function AdminPage() {
             </div>
           )}
         </section>}
-        {section === "creator-requests" && <section className="creator-requests-section" id="creator-requests">
-          <div className="admin-section-heading">
-            <div><p className="eyebrow">Akses kreator</p><h2>Pengajuan kreator</h2></div>
-            <span>{requests.length} menunggu</span>
-          </div>
-          {requests.length === 0 ? (
-            <div className="admin-empty"><ShieldCheck size={28} /><h2>Tidak ada pengajuan yang menunggu.</h2><p>Pengajuan lama yang sudah disetujui atau ditolak tidak ditampilkan di antrean ini.</p></div>
-          ) : (
-            <div className="request-table-wrap">
-              <table className="request-table">
-                <thead><tr><th>Pengaju</th><th>Catatan</th><th>Portofolio & media sosial</th><th>Tanggal</th><th>Status</th><th>Tindakan</th></tr></thead>
-                <tbody>{requests.map((request) => (
-                  <tr key={request.id}>
-                    <td><strong>{request.applicant}</strong><code>{request.user_id.slice(0, 8)}...</code></td>
-                    <td><p className="request-preview">{request.note || "Tidak ada catatan."}</p><button className="view-button" onClick={() => setSelectedRequest(request)}>Lihat</button></td>
-                    <td><div className="request-links compact-links">{request.portfolio_url && <a href={request.portfolio_url} target="_blank" rel="noreferrer">Portofolio</a>}{request.instagram_url && <a href={request.instagram_url} target="_blank" rel="noreferrer">Instagram</a>}{request.other_url && <a href={request.other_url} target="_blank" rel="noreferrer">Lainnya</a>}{!request.portfolio_url && !request.instagram_url && !request.other_url && <span>Tidak ada</span>}</div></td>
-                    <td>{new Date(request.created_at).toLocaleDateString("id-ID")}</td>
-                    <td><span className={`request-status request-${request.status}`}>{request.status === "pending" ? "Menunggu" : request.status === "approved" ? "Disetujui" : "Ditolak"}</span>{request.status === "approved" && <small>Peran: {roleLabels[request.role as keyof typeof roleLabels] || "Pembaca"}</small>}</td>
-                    <td>{request.status === "pending" ? <div className="request-actions"><button className="approve-button" onClick={() => reviewRequest(request, "approved")} disabled={actionId === request.id}><Check size={16} /> Setujui</button><button className="reject-button" onClick={() => reviewRequest(request, "rejected")} disabled={actionId === request.id}><X size={16} /> Tolak</button></div> : <span className="reviewed-label">Sudah ditinjau</span>}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          )}
-        </section>}
         {section === "users" && <section className="admin-management-section" id="user-management">
           <div className="admin-section-heading">
             <div><p className="eyebrow">Akun dan akses</p><h2>Manajemen pengguna</h2></div>
@@ -705,7 +646,7 @@ export default function AdminPage() {
                       ? <span className="reviewed-label">Akses admin dilindungi</span>
                       : user.id === adminUserId
                         ? <span className="reviewed-label">Akun yang sedang digunakan</span>
-                        : <select className="admin-role-select" aria-label={`Ubah peran ${user.display_name}`} value={user.role} onChange={(event) => updateUserRole(user, event.target.value as "reader" | "creator")} disabled={actionId === user.id}><option value="reader">Pembaca</option><option value="creator">Kreator</option></select>}
+                        : <select className="admin-role-select" aria-label={`Ubah peran ${user.display_name}`} value={user.role === "creator" ? "reader" : user.role} onChange={() => updateUserRole(user, "reader")} disabled={actionId === user.id}><option value="reader">Pembaca</option></select>}
                     </td>
                     <td><select className="admin-role-select" aria-label={`Ubah paket reader ${user.display_name}`} value={user.membershipTier} onChange={(event) => {
                       const selectedTier = READER_MEMBERSHIP_TIERS.find((tier) => tier.value === event.target.value)?.value;
@@ -762,20 +703,6 @@ export default function AdminPage() {
           </section>
         </div>
       </div>
-      {selectedRequest && (
-        <div className="request-modal-backdrop" role="presentation" onClick={() => setSelectedRequest(null)}>
-          <section className="request-modal" role="dialog" aria-modal="true" aria-labelledby="request-modal-title" onClick={(event) => event.stopPropagation()}>
-            <div className="request-modal-header">
-              <div><p className="eyebrow">Pengajuan kreator</p><h2 id="request-modal-title">{selectedRequest.applicant}</h2></div>
-              <button className="modal-close" onClick={() => setSelectedRequest(null)} aria-label="Tutup pengajuan">×</button>
-            </div>
-            <div className="modal-meta"><span>{requestStatusLabels[selectedRequest.status]}</span><span>{new Date(selectedRequest.created_at).toLocaleDateString("id-ID")}</span></div>
-            <p className="modal-note">{selectedRequest.note || "Tidak ada catatan."}</p>
-            <div className="modal-links">{selectedRequest.portfolio_url && <a href={selectedRequest.portfolio_url} target="_blank" rel="noreferrer">Portofolio ↗</a>}{selectedRequest.instagram_url && <a href={selectedRequest.instagram_url} target="_blank" rel="noreferrer">Instagram ↗</a>}{selectedRequest.other_url && <a href={selectedRequest.other_url} target="_blank" rel="noreferrer">Tautan lain ↗</a>}</div>
-            {selectedRequest.status === "pending" && <div className="request-actions modal-actions"><button className="approve-button" onClick={() => { reviewRequest(selectedRequest, "approved"); setSelectedRequest(null); }} disabled={actionId === selectedRequest.id}><Check size={16} /> Setujui</button><button className="reject-button" onClick={() => { reviewRequest(selectedRequest, "rejected"); setSelectedRequest(null); }} disabled={actionId === selectedRequest.id}><X size={16} /> Tolak</button></div>}
-          </section>
-        </div>
-      )}
     </main>
   );
 }

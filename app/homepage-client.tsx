@@ -97,15 +97,11 @@ function HomepagePromoCarousel({ promos }: { promos: HomepagePromo[] }) {
 
 function ComicCard({ comic, compact = false, overlayDetails = false, landscapeCard = false }: { comic: HomepageComic; compact?: boolean; overlayDetails?: boolean; landscapeCard?: boolean }) {
   const chapter = comic.latestChapter;
-  const creatorProfile = comic.creatorHandle && comic.creatorProfilePublic
-    ? `/kreator/${encodeURIComponent(comic.creatorHandle)}`
-    : null;
   const comicInfo = (
     <div className="reader-comic-info">
       {!overlayDetails && <><span className="reader-card-genre">{comicGenre(comic.genre)}</span><h3>{comic.title}</h3></>}
       <div className={overlayDetails ? "reader-card-author" : undefined}>
         <p>{comic.contributor || comic.creator}</p>
-        {overlayDetails && creatorProfile && <Link className="reader-card-creator-shortcut" href={creatorProfile} aria-label={`Lihat profil kreator ${comic.contributor || comic.creator}`} title="Profil kreator"><ArrowUpRight size={13} /></Link>}
       </div>
       {comic.engagement && (
         <div className="reader-card-engagement" aria-label={`Statistik ${comic.title}`}>
@@ -130,9 +126,6 @@ function ComicCard({ comic, compact = false, overlayDetails = false, landscapeCa
         {!overlayDetails && comicInfo}
       </Link>
       {overlayDetails && comicInfo}
-      {!overlayDetails && creatorProfile && (
-        <Link className="reader-creator-profile-link" href={creatorProfile}>Profil kreator <ArrowUpRight size={13} /></Link>
-      )}
       {chapter && <Link className="reader-card-read" href={`/comic/${comic.slug}/chapter/${chapter.id}`}><BookOpen size={14} /> Baca <ArrowRight size={14} /></Link>}
     </article>
   );
@@ -428,48 +421,44 @@ export default function HomePageClient({
         </section>
       </div>
 
-      <section className="reader-seo-about" aria-labelledby="reader-seo-about-title">
+      <section className="reader-seo-about" id="about" aria-labelledby="reader-seo-about-title">
         <header className="reader-seo-about-header">
-          <p className="reader-section-kicker">TENTANG MU KOMIK</p>
-          <h2 id="reader-seo-about-title">Cerita komik Indonesia dari kreator lokal</h2>
-          <p>MU Komik adalah platform untuk membaca komik Indonesia dan menjelajahi cerita karya kreator lokal. Temukan komik berdasarkan genre, ikuti episode yang terbit, atau mulai berkarya sebagai kreator.</p>
+          <p className="reader-section-kicker">TENTANG YOUVIE</p>
+          <h2 id="reader-seo-about-title">Drama pendek dalam format serial</h2>
+          <p>Youvie adalah platform drama pendek dengan cerita yang disajikan dalam episode. Jelajahi serial berdasarkan genre dan ikuti urutan tayangnya.</p>
         </header>
         <div className="reader-seo-about-grid">
           <article>
             <div className="reader-seo-about-image"><Image src="/genre.png" alt="" fill sizes="(max-width: 760px) 100vw, (max-width: 1100px) 50vw, 33vw" /></div>
             <h3>Jelajahi beragam genre</h3>
-            <p>Katalog MU Komik menyediakan penelusuran berdasarkan genre, seperti fantasi, fiksi ilmiah, drama, komedi, aksi, romansa, horor, misteri, dan petualangan. Ketersediaan judul bergantung pada komik yang telah diterbitkan.</p>
-            <a href="#genre">Jelajahi genre komik</a>
+            <p>Temukan kisah drama, komedi, aksi, romansa, misteri, dan genre lainnya dalam satu katalog.</p>
+            <a href="#genre">Jelajahi genre</a>
           </article>
           <article>
             <div className="reader-seo-about-image"><Image src="/reading.png" alt="" fill sizes="(max-width: 760px) 100vw, (max-width: 1100px) 50vw, 33vw" /></div>
-            <h3>Baca cerita dan episode</h3>
-            <p>Buka halaman komik untuk membaca sinopsis, melihat informasi cerita, dan menemukan episode yang tersedia. Komik dapat dibaca pada perangkat yang didukung oleh kreatornya.</p>
-            <a href="#jelajah">Lihat katalog komik</a>
+            <h3>Tonton episode berurutan</h3>
+            <p>Setiap serial memiliki daftar season dan episode agar kamu mudah melanjutkan cerita dari bagian terakhir.</p>
+            <a href="#jelajah">Lihat katalog drama</a>
           </article>
           <article>
-            <div className="reader-seo-about-image"><Image src="/ruang_kreator.png" alt="" fill sizes="(max-width: 760px) 100vw, (max-width: 1100px) 50vw, 33vw" /></div>
-            <h3>Ruang untuk kreator lokal</h3>
-            <p>Kreator dapat mengajukan akses kreator, menerbitkan komik, dan mengelola episode karyanya. MU Komik juga menjelaskan pandangannya tentang penggunaan AI dalam proses kreatif.</p>
-            <Link href="/manifesto">Baca manifesto AI MU Komik</Link>
+            <div className="reader-seo-about-image"><Image src="/reading.png" alt="" fill sizes="(max-width: 760px) 100vw, (max-width: 1100px) 50vw, 33vw" /></div>
+            <h3>Konten dikelola tim Youvie</h3>
+            <p>Serial dan episode diterbitkan melalui halaman pengelolaan video yang hanya dapat diakses admin dan akun yang diberi izin.</p>
+            <Link href="/syarat-ketentuan">Ketentuan layanan Youvie</Link>
           </article>
         </div>
       </section>
 
-      {settings.feature_flags.creators && <section className="reader-creator-cta" id="creator">
-        <div><p className="reader-section-kicker">PUNYA CERITA?</p><h2>Terbitkan komikmu dan temukan pembaca baru.</h2></div>
-        <Link className="reader-primary-button" href={signedIn ? "/account" : "/login"}>Jadi kreator <ArrowRight size={17} /></Link>
-      </section>}
       <footer className="reader-footer">
         <div className="reader-footer-main-row">
           <BrandLogo className="wordmark reader-wordmark" />
           <PlatformLinks />
           <div className="reader-footer-utility-links">
-            <nav className="reader-footer-links" aria-label="Tautan footer"><a href="#jelajah">Jelajah</a><a href="#genre">Genre</a><a href="#creator">Kreator</a><Link href="/push-ads">Pasang iklan</Link><Link href="/manifesto">Manifesto AI</Link><Link href="/syarat-ketentuan">Syarat layanan</Link></nav>
+            <nav className="reader-footer-links" aria-label="Tautan footer"><a href="#jelajah">Jelajah</a><a href="#genre">Genre</a><a href="#about">Tentang Youvie</a><Link href="/push-ads">Pasang iklan</Link><Link href="/syarat-ketentuan">Syarat layanan</Link></nav>
           </div>
         </div>
         <p>Tempat cerita Indonesia menemukan pembacanya.</p>
-        <span>© 2026 mu-komik</span>
+        <span>© 2026 Youvie</span>
       </footer>
     </main>
   );

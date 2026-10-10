@@ -5,11 +5,11 @@ import BrandLogo from "@/components/brand-logo";
 import { siteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  title: "Manifesto AI MU-KOMIK",
-  description: "AI untuk bercerita. Manusia untuk menciptakan makna. Manifesto MU-KOMIK tentang kreativitas, teknologi, dan masa depan komik.",
+  title: "Manifesto AI Youvie",
+  description: "AI untuk bercerita. Manusia untuk menciptakan makna. Manifesto Youvie tentang kreativitas, teknologi, dan masa depan komik.",
   alternates: { canonical: new URL("/manifesto", siteUrl).toString() },
   openGraph: {
-    title: "Manifesto AI MU-KOMIK",
+    title: "Manifesto AI Youvie",
     description: "AI untuk bercerita. Manusia untuk menciptakan makna.",
     url: new URL("/manifesto", siteUrl).toString(),
   },
@@ -84,7 +84,7 @@ export default function ManifestoPage() {
 
       <header className="manifesto-hero">
         <p className="manifesto-eyebrow">PANDANGAN KAMI TENTANG MASA DEPAN KOMIK</p>
-        <h1>Manifesto AI<br /><em>MU-KOMIK</em></h1>
+        <h1>Manifesto AI<br /><em>Youvie</em></h1>
         <p className="manifesto-lead">AI untuk bercerita.<br /><strong>Manusia untuk menciptakan makna.</strong></p>
         <div className="manifesto-origin">
           <p>Kami percaya setiap komik lahir dari sebuah gagasan.</p>
@@ -120,20 +120,20 @@ export default function ManifestoPage() {
       </section>
 
       <section className="manifesto-home">
-        <p className="manifesto-eyebrow">MU-KOMIK</p>
+        <p className="manifesto-eyebrow">Youvie</p>
         <h2>Tempat cerita menemukan rumahnya.</h2>
-        <p>Kami membangun MU-KOMIK untuk para pencipta dunia.</p>
+        <p>Kami membangun Youvie untuk para pencipta dunia.</p>
         <p>Dunia yang lucu. Dunia yang absurd. Dunia yang dekat dengan kehidupan. Dunia yang belum pernah diceritakan.</p>
         <p>Dengan teknologi AI, kami ingin membuat proses menciptakan komik menjadi lebih mudah, lebih cepat, dan lebih terbuka.</p>
         <blockquote>
           Di balik setiap cerita yang berarti, selalu ada manusia yang ingin mengatakan sesuatu.
-          <strong>MU-KOMIK percaya pada manusia itu.</strong>
+          <strong>Youvie percaya pada manusia itu.</strong>
         </blockquote>
       </section>
 
       <footer className="manifesto-footer">
         <BrandLogo linked />
-        <Link href="/" className="manifesto-back">Kembali ke MU-KOMIK <ArrowUpRight size={16} /></Link>
+        <Link href="/" className="manifesto-back">Kembali ke Youvie <ArrowUpRight size={16} /></Link>
       </footer>
     </main>
   );

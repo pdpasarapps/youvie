@@ -113,7 +113,7 @@
   }
 
   function showError(error) {
-    console.error("Unable to load MU-Komik offline episodes:", error);
+    console.error("Unable to load Youvie offline episodes:", error);
     errorNode.textContent = error instanceof Error ? error.message : "Unduhan offline tidak dapat dimuat.";
   }
 
@@ -132,7 +132,7 @@
     frame.append(image);
     const watermark = document.createElement("div");
     watermark.className = "offline-watermarks";
-    const label = `MU-KOMIK.COM · ${localStorage.getItem("mu-komik:offline-watermark-name") || "Pembaca"}`;
+    const label = `YOUVIE · ${localStorage.getItem("mu-komik:offline-watermark-name") || "Pembaca"}`;
     for (let index = 0; index < 6; index += 1) appendText(watermark, "span", label);
     frame.append(watermark);
     pageList.append(frame);

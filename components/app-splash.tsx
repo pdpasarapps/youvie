@@ -27,7 +27,7 @@ export default function AppSplash() {
         {stage === "brand" ? (
           <>
             <BrandLogo className="wordmark app-splash-logo" linked={false} />
-            <p className="app-splash-name">MU-komik</p>
+            <p className="app-splash-name">Youvie</p>
             <span className="app-splash-tagline">Cerita seru, selalu menemani.</span>
           </>
         ) : (
@@ -35,7 +35,7 @@ export default function AppSplash() {
             <span className="app-splash-book-icon" aria-hidden="true"><BookOpen size={30} /></span>
             <p className="app-splash-eyebrow">HALO, PEMBACA!</p>
             <h1>Selamat datang,<br />para pembaca.</h1>
-            <p className="app-splash-message">Selamat membaca dan menikmati cerita di MU-komik!</p>
+            <p className="app-splash-message">Selamat membaca dan menikmati cerita di Youvie!</p>
             <button className="app-splash-button" type="button" onClick={() => setStage("hidden")}>
               Mulai membaca
             </button>

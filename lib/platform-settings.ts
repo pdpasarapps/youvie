@@ -22,7 +22,7 @@ export type PlatformSettings = {
 
 export const defaultPlatformSettings: PlatformSettings = {
   maintenance_enabled: false,
-  maintenance_message: "MU-Komik sedang dalam pemeliharaan. Silakan kembali lagi nanti.",
+  maintenance_message: "Youvie sedang dalam pemeliharaan. Silakan kembali lagi nanti.",
   announcement_enabled: false,
   announcement_message: "",
   feature_flags: {

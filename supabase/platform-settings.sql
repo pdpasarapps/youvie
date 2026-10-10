@@ -2,7 +2,7 @@
 create table if not exists public.platform_settings (
   id boolean primary key default true check (id),
   maintenance_enabled boolean not null default false,
-  maintenance_message text not null default 'MU-Komik sedang dalam pemeliharaan. Silakan kembali lagi nanti.',
+  maintenance_message text not null default 'Youvie sedang dalam pemeliharaan. Silakan kembali lagi nanti.',
   announcement_enabled boolean not null default false,
   announcement_message text not null default '',
   feature_flags jsonb not null default '{"reading":true,"search":true,"creators":true,"comments":true,"favorites":true}'::jsonb
