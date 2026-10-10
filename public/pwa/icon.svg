@@ -1,10 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="youvie-gradient" x1="56" x2="456" y1="40" y2="472" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#6547e8"/>
-      <stop offset="1" stop-color="#f35f83"/>
-    </linearGradient>
+    <clipPath id="clapper">
+      <rect x="92" y="108" width="328" height="116" rx="34"/>
+    </clipPath>
   </defs>
-  <rect width="512" height="512" rx="132" fill="url(#youvie-gradient)"/>
-  <path d="m151 153 105 112 105-112M256 265v104" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="44"/>
+  <rect width="512" height="512" fill="#1e2524"/>
+  <rect x="92" y="158" width="328" height="254" rx="40" fill="#f1efe8"/>
+  <rect x="92" y="108" width="328" height="116" rx="34" fill="#f26b43"/>
+  <g clip-path="url(#clapper)" fill="#1e2524">
+    <path d="m117 92 48 0-77 148-48 0z"/>
+    <path d="m211 92 48 0-77 148-48 0z"/>
+    <path d="m305 92 48 0-77 148-48 0z"/>
+    <path d="m399 92 48 0-77 148-48 0z"/>
+  </g>
+  <rect x="132" y="222" width="248" height="132" rx="24" fill="#1e2524"/>
+  <path d="m228 248 76 40-76 40z" fill="#b9ded0"/>
+  <circle cx="159" cy="382" r="8" fill="#f26b43"/>
+  <rect x="180" y="374" width="74" height="16" rx="8" fill="#1e2524"/>
+  <rect x="268" y="374" width="74" height="16" rx="8" fill="#b9ded0"/>
 </svg>

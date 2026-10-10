@@ -1,5 +1,6 @@
-const CACHE_PREFIX = "mu-komik-pwa-";
-const CACHE_NAME = `${CACHE_PREFIX}v5`;
+const CACHE_PREFIX = "youvie-pwa-";
+const LEGACY_CACHE_PREFIX = "mu-komik-pwa-";
+const CACHE_NAME = `${CACHE_PREFIX}v1`;
 const OFFLINE_URL = "/offline.html";
 const OFFLINE_SCRIPT_URL = "/offline-episodes.js";
 const PRECACHE_URLS = [
@@ -34,7 +35,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys
-        .filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME)
+        .filter((key) => (key.startsWith(CACHE_PREFIX) && key !== CACHE_NAME) || key.startsWith(LEGACY_CACHE_PREFIX))
         .map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );

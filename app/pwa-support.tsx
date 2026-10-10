@@ -79,7 +79,7 @@ export default function PwaSupport() {
       {!installInstructions ? (
         <aside className="pwa-install-card" aria-label="Pasang aplikasi Youvie">
           <Image className="pwa-install-logo" src="/pwa/icon.svg" alt="" width={42} height={42} />
-          <div className="pwa-install-copy"><strong>Baca lebih nyaman</strong><span>Pasang Youvie di perangkatmu.</span></div>
+          <div className="pwa-install-copy"><strong>Drama favorit di layar utama</strong><span>Pasang Youvie untuk lanjut menonton.</span></div>
           <button onClick={install}><Download size={16} /> Pasang</button>
           <button className="pwa-install-dismiss" aria-label="Tutup ajakan pemasangan" onClick={() => { setInstallPrompt(null); setIsIosInstallable(false); setIsAndroidInstallable(false); }}><X size={17} /></button>
         </aside>

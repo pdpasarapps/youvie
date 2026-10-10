@@ -187,6 +187,7 @@ export default function DramaVideoReader({
     if (!video) return;
     if (video.paused) {
       void video.play().catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("Unable to play drama episode:", error);
         setMessage("Video tidak dapat diputar. Coba tekan tombol putar di video.");
       });
