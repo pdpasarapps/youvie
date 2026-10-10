@@ -1,0 +1,17 @@
+[
+  {
+    "AllowedOrigins": [
+      "http://localhost:3000",
+      "http://localhost:3030",
+      "https://mu-komik.com",
+      "https://mu-komik.pages.dev",
+      "https://mu-komik.pdpasarapps.workers.dev",
+      "https://cdn.mu-komik.com",
+      "https://komik.gandrung.co.id"
+    ],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]

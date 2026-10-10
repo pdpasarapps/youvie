@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f6f2">
+    <title>Unduhan offline — MU-Komik</title>
+    <style>
+      :root{color-scheme:light;--ink:#1e2524;--paper:#f7f6f2;--muted:#68716a;--line:#e7e5de;--orange:#f26b43}
+      *{box-sizing:border-box}
+      body{min-height:100vh;margin:0;padding:24px;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+      main{width:min(100%,760px);margin:0 auto;padding:28px;border-radius:18px;background:#fff;box-shadow:0 18px 50px #1e252414}
+      header{display:flex;align-items:center;gap:14px}header img{width:46px;height:46px}
+      h1{margin:0;font-size:clamp(1.5rem,5vw,2rem);letter-spacing:-.05em}h2{margin:26px 0 10px;font-size:1.1rem}
+      p{color:var(--muted);font-size:.9rem;line-height:1.6}
+      .notice{padding:12px 14px;border:1px solid #ead9bb;border-radius:9px;background:#fcf7ed}
+      #episode-list{display:grid;gap:10px}.episode{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:14px;padding:13px;border:1px solid var(--line);border-radius:10px}
+      .episode-copy{min-width:0;display:grid;gap:4px}.episode-copy strong{overflow-wrap:anywhere}.episode-copy small{color:var(--muted)}
+      .actions{display:flex;flex-wrap:wrap;gap:7px}button,a{min-height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 13px;border:0;border-radius:7px;background:var(--ink);color:#fff;font:inherit;font-size:.8rem;font-weight:750;text-decoration:none;cursor:pointer}
+      button.secondary,a.secondary{border:1px solid var(--line);background:#fff;color:var(--ink)}
+      #reader{display:none}#reader.active{display:block}.reader-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.reader-meta{color:var(--muted)}
+      #page-list{display:grid;gap:14px;margin-top:16px}.offline-page{position:relative;overflow:hidden;background:#f2f0ea}.offline-page img{width:100%;height:auto;display:block;user-select:none;-webkit-user-drag:none}.offline-watermarks{position:absolute;inset:0;display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(3,1fr);align-items:center;justify-items:center;pointer-events:none;overflow:hidden}.offline-watermarks span{max-width:90%;transform:rotate(-24deg);color:rgba(255,255,255,.07);font-size:clamp(.55rem,1.2vw,.85rem);font-weight:300;text-align:center}
+      .reader-nav{display:flex;justify-content:space-between;gap:10px;margin-top:18px}.empty{padding:16px;border:1px dashed var(--line);border-radius:9px}
+      @media(max-width:560px){body{padding:12px}main{padding:20px 15px}.episode{grid-template-columns:1fr}.actions button,.actions a{flex:1}}
+    </style>
+  </head>
+  <body>
+    <main>
+      <header><img src="/pwa/icon.svg" alt=""><div><h1>Unduhan offline</h1><p id="connection-message">Koneksi sedang tidak tersedia. Episode offline tersimpan di perangkat ini.</p></div></header>
+      <p class="notice">Unduhan hanya bisa dibaca oleh akun Premium yang mengunduhnya dan lisensinya berlaku 7 hari sejak verifikasi online terakhir. Browser dapat menghapus data situs kapan saja; simpanan ini bukan cadangan permanen.</p>
+      <section id="library">
+        <h2>Episode di perangkat ini</h2>
+        <div id="episode-list" aria-live="polite"><p>Memuat unduhan…</p></div>
+        <p><a class="secondary" href="/">Coba buka MU-Komik</a></p>
+      </section>
+      <section id="reader" aria-live="polite">
+        <div class="reader-top"><div><strong id="reader-title"></strong><div class="reader-meta" id="reader-meta"></div></div><button class="secondary" id="back-to-library" type="button">Daftar unduhan</button></div>
+        <div class="reader-nav"><button class="secondary" id="previous-page" type="button">Halaman sebelumnya</button><span id="page-counter" class="reader-meta"></span><button class="secondary" id="next-page" type="button">Halaman berikutnya</button></div>
+        <div id="page-list"></div>
+      </section>
+      <p id="offline-error" role="status"></p>
+    </main>
+    <script src="/offline-episodes.js" defer></script>
+  </body>
+</html>
